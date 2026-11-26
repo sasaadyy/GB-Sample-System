@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dokumen Request</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    @media print {
+      .no-print { display: none !important; }
+      body { margin: 0; }
+      .doc { box-shadow: none; border: none; }
+    }
+    .doc {
+      max-width: 800px;
+      margin: 20px auto;
+      background: white;
+      padding: 40px;
+      border: 1px solid #ccc;
+      font-family: Arial, sans-serif;
+    }
+    .doc h2 { text-align: center; margin-bottom: 4px; }
+    .doc .req { text-align: center; color: #555; margin-bottom: 24px; }
+    .doc table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+    .doc td, .doc th { border: 1px solid #999; padding: 8px; font-size: 13px; }
+    .doc th { background: #f0f0f0; text-align: left; width: 30%; }
+    .sign { display: flex; justify-content: space-between; margin-top: 40px; }
+    .sign div { text-align: center; width: 200px; }
+    .sign .line { border-top: 1px solid #000; margin-top: 60px; }
+  </style>
+</head>
+<body>
+  <div class="no-print container" style="text-align:center; margin-top:20px;">
+    <button onclick="window.print()" class="btn-primary">🖨 Print / Save as PDF</button>
+    <a href="/data.html" class="btn-secondary">← Kembali</a>
+  </div>
+
+  <div class="doc" id="docContent"></div>
+
+  <script src="/js/storage.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const reqNum = params.get('req');
+    const data = getDataByRequestNumber(reqNum);
+
+    if (!data) {
+      document.getElementById('docContent').innerHTML =
+        '<h2>Data tidak ditemukan</h2>';
+    } else {
+      document.getElementById('docContent').innerHTML = `
+        <h2>REQUEST FORM</h2>
+        <div class="req">No. ${data.requestNumber} — ${data.tanggal}</div>
+
+        <table>
+          <tr><th>Movement</th><td>${data.movement}</td></tr>
+          <tr><th>Category</th><td>${data.category}</td></tr>
+          <tr><th>Factory Code</th><td>${data.factoryCode}</td></tr>
+          <tr><th>SURINDO PIC</th><td>${data.surindoPic}</td></tr>
+          <tr><th>Purpose</th><td>${data.purpose}</td></tr>
+        </table>
+
+        <table>
+          <tr><th>Part Name</th><td>${data.partName}</td></tr>
+          <tr><th>Part No</th><td>${data.partNo}</td></tr>
+          <tr><th>Core</th><td>${data.core}</td></tr>
+          <tr><th>Resin</th><td>${data.resin}</td></tr>
+          <tr><th>Unit / Item</th><td>${data.unit} / ${data.item}</td></tr>
+          <tr><th>Quantity</th><td>${data.qty}</td></tr>
+        </table>
+
+        <table>
+          <tr><th>Supp_Id</th><td>${data.suppId}</td></tr>
+          <tr><th>SuppDesc</th><td>${data.suppDesc}</td></tr>
+          <tr><th>PIC_Name</th><td>${data.picName}</td></tr>
+          <tr><th>Address</th><td>${data.address}</td></tr>
+          <tr><th>Telp</th><td>${data.tlp}</td></tr>
+          <tr><th>Fax</th><td>${data.fax}</td></tr>
+        </table>
+
+        <div class="sign">
+          <div>Dibuat oleh<div class="line"></div>${data.surindoPic}</div>
+          <div>Disetujui oleh<div class="line"></div></div>
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>
