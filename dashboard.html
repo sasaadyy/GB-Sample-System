@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Factory I</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>🏭 Factory I — Dashboard</h1>
+    <div>
+      <span id="userInfo"></span>
+      <a href="/approval.html" id="approvalLink" class="btn-small" style="display:none">
+        ✅ Approval
+      </a>
+      <button id="logoutBtn" class="btn-small btn-danger">Logout</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="actions-bar">
+      <h2>Dokumen Saya</h2>
+      <button id="newBtn" class="btn-primary">+ Buat / Lanjut Dokumen Hari Ini</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Request No</th>
+          <th>Tanggal</th>
+          <th>PIC</th>
+          <th>Status</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody id="reqTableBody">
+        <tr><td colspan="5" style="text-align:center">Memuat...</td></tr>
+      </tbody>
+    </table>
+  </main>
+
+  <script type="module">
+    import { supabase } from '/js/supabase.js';
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) location.href = '/index.html';
+
+    // Profile
+    const { data: profile } = await supabase
+      .from('profiles').select('full_name,pic_code,role')
+      .eq('id', session.user.id).single();
+    document.getElementById('userInfo').textContent =
+      `${profile?.full_name} (${profile?.pic_code})`;
+
+    if (['supervisor','admin'].includes(profile?.role)) {
+      document.getElementById('approvalLink').style.display = 'inline-block';
+    }
+
+    // Logout
+    document.getElementById('logoutBtn').onclick = async () => {
+      await supabase.auth.signOut();
+      location.href = '/index.html';
+    };
+
+    // Cek dokumen hari ini
+    const today = new Date().toISOString().slice(0,10);
+    const { data: todayDoc } = await supabase
+      .from('requests')
+      .select('id,status')
+      .eq('pic_id', session.user.id)
+      .eq('tanggal', today)
+      .maybeSingle();
+
+    const newBtn = document.getElementById('newBtn');
+    if (todayDoc) {
+      newBtn.textContent = `📝 Lanjut Dokumen Hari Ini (${todayDoc.status})`;
+    } else {
+      newBtn.textContent = '+ Buat Dokumen Hari Ini';
+    }
+    newBtn.onclick = () => {
+      location.href = todayDoc ? `/form.html?id=${todayDoc.id}` : '/form.html';
+    };
+
+    // Load list
+    const tbody = document.getElementById('reqTableBody');
+    const { data: reqs, error } = await supabase
+      .from('requests')
+      .select('id,request_no,tanggal,surindo_pic,status')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#dc2626">${error.message}</td></tr>`;
+    } else if (!reqs?.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">Belum ada dokumen</td></tr>';
+    } else {
+      tbody.innerHTML = reqs.map(r => `
+        <tr>
+          <td><strong>${r.request_no}</strong></td>
+          <td>${r.tanggal}</td>
+          <td>${r.surindo_pic}</td>
+          <td><span class="badge ${r.status}">${r.status.replace('_',' ')}</span></td>
+          <td>
+            ${r.status === 'draft' || r.status === 'rejected'
+              ? `<a href="/form.html?id=${r.id}" class="btn-small">✏️ Edit</a>`
+              : `<a href="/form.html?id=${r.id}" class="btn-small">👁 Lihat</a>`}
+            ${r.status === 'approved'
+              ? `<button class="btn-small" onclick="printPdf('${r.id}')">📄 PDF</button>`
+              : ''}
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    window.printPdf = async (id) => {
+      const { generatePdf } = await import('/js/pdf.js');
+      generatePdf(id);
+    };
+  </script>
+</body>
+</html>
