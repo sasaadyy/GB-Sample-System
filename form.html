@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Form TR — Factory I</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>📝 Dokumen Transport Request</h1>
+    <div>
+      <span id="reqBadge"></span>
+      <a href="/dashboard.html" class="btn-small">← Dashboard</a>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- ============ TAB 1: DOKUMEN ============ -->
+    <section class="card tab-content active" id="tab-dokumen">
+      <h2>1. Dokumen</h2>
+      <div class="grid-2">
+        <div class="form-row">
+          <label>Request No</label>
+          <input type="text" id="requestNo" readonly placeholder="otomatis saat disimpan" />
+        </div>
+        <div class="form-row">
+          <label>SURINDO PIC</label>
+          <input type="text" id="surindoPic" readonly />
+        </div>
+        <div class="form-row">
+          <label>Tanggal</label>
+          <input type="date" id="tanggal" required />
+        </div>
+        <div class="form-row">
+          <label>Factory Code</label>
+          <input type="text" value="I" readonly />
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Indicate Document</label>
+        <textarea id="indicateDocument" rows="4" required></textarea>
+      </div>
+      <div class="form-row">
+        <label>Remarks <small>(opsional)</small></label>
+        <textarea id="remarks" rows="2"></textarea>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn-primary" id="saveDokumen">💾 Simpan Dokumen</button>
+        <button type="button" class="btn-secondary" id="resetDokumen">Reset</button>
+      </div>
+      <p class="msg" id="msgDokumen"></p>
+    </section>
+
+    <!-- ============ TAB 2: BARANG ============ -->
+    <section class="card tab-content" id="tab-barang">
+      <h2>2. Barang</h2>
+      <div class="form-row">
+        <label>Indicate Document</label>
+        <select id="barangDoc">
+          <option value="">-- Pilih Indicate Document --</option>
+        </select>
+      </div>
+      <div class="grid-2">
+        <div class="form-row">
+          <label>Part Number</label>
+          <select id="partNumber" required>
+            <option value="">-- Pilih Part Number --</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Part Name</label>
+          <input type="text" id="partName" readonly />
+        </div>
+        <div class="form-row">
+          <label>Unit</label>
+          <input type="text" id="unit" readonly />
+        </div>
+        <div class="form-row">
+          <label>Saldo Stock (otomatis)</label>
+          <input type="number" id="saldoStock" readonly placeholder="0" />
+        </div>
+        <div class="form-row">
+          <label>Qty IN</label>
+          <input type="number" id="qtyIn" min="0" step="0.01" required />
+        </div>
+        <div class="form-row">
+          <label>Qty OUT</label>
+          <input type="number" id="qtyOut" min="0" step="0.01" required />
+        </div>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn-primary" id="addBarang">+ Tambah Barang</button>
+        <button type="button" class="btn-secondary" id="resetBarang">Reset</button>
+      </div>
+      <p class="msg" id="msgBarang"></p>
+      <table>
+        <thead>
+          <tr>
+            <th>Part Name</th>
+            <th>Part No</th>
+            <th>Unit</th>
+            <th>Qty IN</th>
+            <th>Qty OUT</th>
+            <th>Saldo</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="barangTableBody">
+          <tr><td colspan="7" style="text-align:center">Belum ada barang</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ============ TAB 3: PACKING LIST ============ -->
+    <section class="card tab-content" id="tab-packing">
+      <h2>3. Packing List</h2>
+      <div class="grid-2">
+        <div class="form-row">
+          <label>Jumlah Box</label>
+          <input type="number" id="jumlahBox" min="1" required />
+        </div>
+        <div class="form-row">
+          <label>Dimensi (PxLxT cm)</label>
+          <input type="text" id="dimensi" placeholder="40x30x20" required />
+        </div>
+        <div class="form-row">
+          <label>Gross Weight (Kg)</label>
+          <input type="number" id="grossWeight" min="0.01" step="0.01" required />
+        </div>
+        <div class="form-row">
+          <label>Nett Weight (Kg)</label>
+          <input type="number" id="nettWeight" min="0.01" step="0.01" required />
+        </div>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn-primary" id="savePacking">💾 Simpan Packing List</button>
+        <button type="button" class="btn-secondary" id="resetPacking">Reset</button>
+      </div>
+      <p class="msg" id="msgPacking"></p>
+
+      <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0" />
+
+      <div class="actions">
+        <button type="button" class="btn-primary" id="sendAll">📤 Send untuk Approval</button>
+        <button type="button" class="btn-secondary" id="downloadPdf">📄 Download PDF</button>
+      </div>
+      <p class="msg" id="msgSend"></p>
+    </section>
+
+    <!-- TAB NAV -->
+    <nav class="tabnav">
+      <button type="button" data-tab="dokumen" class="active">1. Dokumen</button>
+      <button type="button" data-tab="barang">2. Barang</button>
+      <button type="button" data-tab="packing">3. Packing List</button>
+    </nav>
+  </main>
+
+  <script type="module" src="/js/form.js"></script>
+</body>
+</html>
