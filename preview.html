@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Preview Transport Request</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    @media print {
+      .sidebar, .topbar, .no-print { display: none !important; }
+      body { background: white; display: block; overflow: visible; }
+      .main-content { overflow: visible; }
+      .container { padding: 0; overflow: visible; }
+      .card { box-shadow: none; border: none; }
+    }
+    .doc-box { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border: 1px solid #ccc; }
+    .doc-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+    .doc-info { display: flex; justify-content: space-between; margin-bottom: 20px; }
+    .doc-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    .doc-table th, .doc-table td { border: 1px solid #000; padding: 8px; }
+  </style>
+</head>
+<body>
+  <!-- Main Content -->
+  <div class="main-content" style="width:100%;">
+    <div class="container">
+      <div class="no-print" style="text-align:center; margin-bottom:20px;">
+        <button class="btn btn-primary" onclick="window.print()">🖨️ Cetak / Simpan PDF</button>
+        <a href="/dashboard.html" class="btn btn-danger">← Kembali</a>
+      </div>
+
+      <div class="doc-box" id="docContent">
+        <!-- Diisi JS -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(location.search);
+    const reqId = urlParams.get('id');
+    const allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+    const doc = allRequests.find(r => r.id === reqId);
+
+    if (!doc) {
+      document.getElementById('docContent').innerHTML = '<h2>Data tidak ditemukan</h2>';
+    } else {
+      const itemsHtml = doc.items.map(it => `
+        <tr>
+          <td>${it.part_name}</td>
+          <td>${it.part_no}</td>
+          <td>${it.qty_out}</td>
+        </tr>
+      `).join('');
+
+      const packingHtml = doc.packing.map(pk => `
+        <tr>
+          <td>${pk.jumlah_box}</td>
+          <td>${pk.dimensi}</td>
+          <td>${pk.gross}</td>
+        </tr>
+      `).join('');
+
+      document.getElementById('docContent').innerHTML = `
+        <div class="doc-header">
+          <h2>TRANSPORT REQUEST (TR)</h2>
+          <p>No. ${doc.request_no}</p>
+        </div>
+        <div class="doc-info">
+          <div>
+            <p><strong>Tanggal:</strong> ${doc.tanggal}</p>
+            <p><strong>PIC:</strong> ${doc.surindo_pic || 'Mumuh'}</p>
+          </div>
+          <div>
+            <p><strong>Status:</strong> ${doc.status.toUpperCase()}</p>
+            <p><strong>Supplier:</strong> ${doc.supplier_name || '-'}</p>
+          </div>
+        </div>
+
+        <h4>DATA BARANG</h4>
+        <table class="doc-table">
+          <thead><tr><th>Part Name</th><th>Part No</th><th>Qty OUT</th></tr></thead>
+          <tbody>${itemsHtml}</tbody>
+        </table>
+
+        <h4>PACKING LIST</h4>
+        <table class="doc-table">
+          <thead><tr><th>Jumlah Box</th><th>Dimensi</th><th>Gross Weight (Kg)</th></tr></thead>
+          <tbody>${packingHtml}</tbody>
+        </table>
+
+        <div style="margin-top: 50px; display: flex; justify-content: space-between; text-align: center;">
+          <div>
+            <p>Dibuat oleh,</p>
+            <br><br><br>
+            <p>( ${doc.surindo_pic || 'Mumuh'} )</p>
+          </div>
+          <div>
+            <p>Disetujui oleh,</p>
+            <br><br><br>
+            <p>( ........................... )</p>
+          </div>
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>
