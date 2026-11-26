@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Approval — Factory I</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>✅ Approval Dokumen</h1>
+    <a href="/dashboard.html" class="btn-small">← Dashboard</a>
+  </header>
+
+  <main class="container">
+    <div class="actions-bar">
+      <h2>Dokumen Menunggu Approval</h2>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Request No</th>
+          <th>Tanggal</th>
+          <th>PIC</th>
+          <th>Submitted</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody id="pendingBody">
+        <tr><td colspan="5" style="text-align:center">Memuat...</td></tr>
+      </tbody>
+    </table>
+
+    <div class="actions-bar" style="margin-top:32px">
+      <h2>Riwayat Approval</h2>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Request No</th>
+          <th>Tanggal</th>
+          <th>PIC</th>
+          <th>Status</th>
+          <th>Approved By</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody id="historyBody">
+        <tr><td colspan="6" style="text-align:center">Memuat...</td></tr>
+      </tbody>
+    </table>
+  </main>
+
+  <script type="module">
+    import { supabase } from '/js/supabase.js';
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) location.href = '/index.html';
+
+    const { data: prof } = await supabase
+      .from('profiles').select('role').eq('id', session.user.id).single();
+    if (!['supervisor', 'admin'].includes(prof.role)) {
+      document.body.innerHTML =
+        '<div class="container"><div class="card"><h2>❌ Akses ditolak</h2><p>Halaman ini hanya untuk supervisor/admin.</p></div></div>';
+      throw new Error('not supervisor');
+    }
+
+    // ============ PENDING ============
+    const { data: pending } = await supabase
+      .from('requests')
+      .select('id,request_no,tanggal,surindo_pic,submitted_at')
+      .eq('status', 'pending_approval')
+      .order('submitted_at', { ascending: true });
+
+    const pendingBody = document.getElementById('pendingBody');
+    if (!pending?.length) {
+      pendingBody.innerHTML =
+        '<tr><td colspan="5" style="text-align:center">Tidak ada pending</td></tr>';
+    } else {
+      pendingBody.innerHTML = pending.map(r => `
+        <tr>
+          <td><strong>${r.request_no}</strong></td>
+          <td>${r.tanggal}</td>
+          <td>${r.surindo_pic}</td>
+          <td>${r.submitted_at?.slice(0,16).replace('T',' ')}</td>
+          <td>
+            <button class="btn-small" onclick="approve('${r.id}')">✅ Approve</button>
+            <button class="btn-small btn-danger" onclick="reject('${r.id}')">❌ Reject</button>
+            <a href="/form.html?id=${r.id}" class="btn-small">👁 Detail</a>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // ============ HISTORY ============
+    const { data: history } = await supabase
+      .from('requests')
+      .select('id,request_no,tanggal,surindo_pic,status,approved_by,approved_at,reject_reason')
+      .in('status', ['approved', 'rejected'])
+      .order('approved_at', { ascending: false })
+      .limit(50);
+
+    const historyBody = document.getElementById('historyBody');
+    if (!history?.length) {
+      historyBody.innerHTML =
+        '<tr><td colspan="6" style="text-align:center">Belum ada riwayat</td></tr>';
+    } else {
+      historyBody.innerHTML = history.map(r => `
+        <tr>
+          <td>${r.request_no}</td>
+          <td>${r.tanggal}</td>
+          <td>${r.surindo_pic}</td>
+          <td><span class="badge ${r.status}">${r.status}</span></td>
+          <td>${r.approved_at?.slice(0,16).replace('T',' ') || '-'}</td>
+          <td><a href="/form.html?id=${r.id}" class="btn-small">👁 Detail</a></td>
+        </tr>
+      `).join('');
+    }
+
+    // ============ ACTIONS ============
+    window.approve = async (id) => {
+      if (!confirm('Approve dokumen ini?')) return;
+      const now = new Date().toISOString();
+      const { error } = await supabase.from('requests').update({
+        status: 'approved',
+        approved_at: now,
+        approved_by: session.user.id
+      }).eq('id', id);
+      if (error) return alert('❌ ' + error.message);
+
+      await supabase.from('approvals').insert({
+        request_id: id, action: 'approved', actor_id: session.user.id
+      });
+      alert('✅ Dokumen di-approve');
+      location.reload();
+    };
+
+    window.reject = async (id) => {
+      const reason = prompt('Alasan penolakan:');
+      if (!reason) return;
+      const { error } = await supabase.from('requests').update({
+        status: 'rejected',
+        reject_reason: reason
+      }).eq('id', id);
+      if (error) return alert('❌ ' + error.message);
+
+      await supabase.from('approvals').insert({
+        request_id: id, action: 'rejected',
+        actor_id: session.user.id, note: reason
+      });
+      alert('❌ Dokumen ditolak');
+      location.reload();
+    };
+  </script>
+</body>
+</html>
