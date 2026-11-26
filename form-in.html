@@ -5,7 +5,7 @@
   <title>Form Input IN</title>
   <link rel="stylesheet" href="/css/style.css" />
   <style>
-    /* Tambahan CSS agar input yang disabled terlihat jelas tidak bisa diedit */
+    /* CSS agar input disabled terlihat jelas tidak bisa diinteraksi */
     input:disabled, select:disabled {
       background-color: #e2e8f0 !important;
       color: #64748b !important;
@@ -60,14 +60,19 @@
           </div>
           <div class="form-row">
             <label>Part Number</label>
-            <!-- Gunakan disabled, bukan readonly -->
             <input type="text" id="inPartNo" disabled placeholder="Otomatis terisi..." />
           </div>
         </div>
 
-        <div class="form-row">
-          <label>Qty IN</label>
-          <input type="number" id="inQty" min="1" />
+        <div class="grid-2">
+          <div class="form-row">
+            <label>Unit</label>
+            <input type="text" id="inUnit" disabled placeholder="Otomatis terisi..." />
+          </div>
+          <div class="form-row">
+            <label>Qty IN</label>
+            <input type="number" id="inQty" min="1" />
+          </div>
         </div>
 
         <button class="btn btn-success" onclick="simpanIN()" style="margin-top: 15px;">Simpan IN</button>
@@ -86,15 +91,17 @@
     // 2. Set Tanggal Default Hari Ini
     document.getElementById('inDate').value = new Date().toISOString().slice(0,10);
 
-    // 3. Auto-fill Part Number
+    // 3. Auto-fill Part Number & Unit
     function autoFillIN() {
       const selectedPartNo = document.getElementById('inPartName').value;
       const partData = MASTER_PARTS.find(p => p.part_no === selectedPartNo);
       
       if (partData) {
         document.getElementById('inPartNo').value = partData.part_no;
+        document.getElementById('inUnit').value = partData.unit; // Isi Unit otomatis
       } else {
         document.getElementById('inPartNo').value = '';
+        document.getElementById('inUnit').value = '';
       }
     }
 
@@ -117,6 +124,7 @@
         item: { 
           part_name: partData.part_name, 
           part_no: partData.part_no, 
+          unit: partData.unit, // Simpan Unit ke database
           qty: qty 
         },
         created_at: new Date().toISOString()
