@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Input IN</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>📥 Input GB Sample (IN)</h1>
+    <a href="/dashboard.html">← Kembali</a>
+  </header>
+
+  <main class="container">
+    <div class="card">
+      <h2>Data Dokumen</h2>
+      <div class="grid-2">
+        <div class="form-row">
+          <label>Factory Code</label>
+          <input type="text" value="I" readonly />
+        </div>
+        <div class="form-row">
+          <label>Date</label>
+          <input type="date" id="inDate" />
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Data Barang</h2>
+      <div class="form-row">
+        <label>Category</label>
+        <input type="text" id="inCategory" value="OB" />
+      </div>
+      <div class="form-row">
+        <label>Part Name</label>
+        <select id="inPartName" onchange="autoFillIN()">
+          <option value="">-- Pilih Part Name --</option>
+        </select>
+      </div>
+      <div class="grid-2">
+        <div class="form-row"><label>Part No.</label><input type="text" id="inPartNo" readonly /></div>
+        <div class="form-row"><label>Core</label><input type="text" id="inCore" readonly /></div>
+        <div class="form-row"><label>Resin</label><input type="text" id="inResin" readonly /></div>
+        <div class="form-row"><label>Unit</label><input type="text" id="inUnit" readonly /></div>
+        <div class="form-row"><label>Item</label><input type="text" id="inItem" readonly /></div>
+      </div>
+      <div class="form-row">
+        <label>Quantity</label>
+        <input type="number" id="inQty" />
+      </div>
+      <div class="form-row">
+        <label>Purpose</label>
+        <input type="text" id="inPurpose" />
+      </div>
+      <div class="form-row">
+        <label>Remarks</label>
+        <input type="text" id="inRemarks" />
+      </div>
+      <button class="btn-primary" onclick="simpanIN()">Simpan Data IN</button>
+    </div>
+  </main>
+
+  <script src="/js/masterData.js"></script>
+  <script>
+    // Isi dropdown part name
+    const sel = document.getElementById('inPartName');
+    MASTER_PARTS.forEach(p => {
+      sel.innerHTML += `<option value="${p.part_no}">${p.part_name}</option>`;
+    });
+
+    function autoFillIN() {
+      const pNo = document.getElementById('inPartName').value;
+      const part = MASTER_PARTS.find(p => p.part_no === pNo);
+      if (part) {
+        document.getElementById('inPartNo').value = part.part_no;
+        document.getElementById('inCore').value = part.core;
+        document.getElementById('inResin').value = part.resin;
+        document.getElementById('inUnit').value = part.unit;
+        document.getElementById('inItem').value = part.item;
+      }
+    }
+
+    function simpanIN() {
+      const date = document.getElementById('inDate').value;
+      const partName = document.getElementById('inPartName').value;
+      if (!date || !partName) return alert('Tanggal dan Part Name wajib diisi!');
+
+      let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+      const year = new Date().getFullYear().toString().slice(-2);
+      const seq = String(allRequests.length + 1).padStart(4, '0');
+
+      const newDoc = {
+        id: 'req-' + Date.now(),
+        request_no: `I-${year}-${seq}`,
+        type: 'IN',
+        tanggal: date,
+        factory_code: 'I',
+        purpose: document.getElementById('inPurpose').value,
+        remarks: document.getElementById('inRemarks').value,
+        item: {
+          part_name: partName,
+          part_no: document.getElementById('inPartNo').value,
+          core: document.getElementById('inCore').value,
+          resin: document.getElementById('inResin').value,
+          unit: document.getElementById('inUnit').value,
+          item: document.getElementById('inItem').value,
+          qty: document.getElementById('inQty').value
+        },
+        created_at: new Date().toISOString()
+      };
+
+      allRequests.push(newDoc);
+      localStorage.setItem('requests', JSON.stringify(allRequests));
+      
+      alert('Data IN berhasil disimpan!');
+      window.location.href = '/dashboard.html';
+    }
+  </script>
+</body>
+</html>
