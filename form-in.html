@@ -4,6 +4,15 @@
   <meta charset="UTF-8" />
   <title>Form Input IN</title>
   <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    /* Tambahan CSS agar input yang disabled terlihat jelas tidak bisa diedit */
+    input:disabled, select:disabled {
+      background-color: #e2e8f0 !important;
+      color: #64748b !important;
+      cursor: not-allowed !important;
+      border: 1px solid #cbd5e1 !important;
+    }
+  </style>
 </head>
 <body>
   <div class="sidebar">
@@ -37,8 +46,7 @@
               <option value="Finish Ball">Finish Ball</option>
               <option value="Core Ball">Core Ball</option>
               <option value="Packaging">Packaging</option>
-              <option value="Mold">Mold and Spare Part Mold</option>
-               <option value="Mold">Others</option>
+              <option value="Mold">Mold</option>
             </select>
           </div>
         </div>
@@ -52,7 +60,8 @@
           </div>
           <div class="form-row">
             <label>Part Number</label>
-            <input type="text" id="inPartNo" readonly placeholder="Otomatis terisi..." />
+            <!-- Gunakan disabled, bukan readonly -->
+            <input type="text" id="inPartNo" disabled placeholder="Otomatis terisi..." />
           </div>
         </div>
 
@@ -118,7 +127,7 @@
       localStorage.setItem('requests', JSON.stringify(reqs));
       
       alert('Data IN berhasil disimpan!');
-      window.location.href = '/input-in.html'; // Kembali ke tabel, bukan dashboard
+      window.location.href = '/input-in.html'; 
     }
   </script>
 </body>
