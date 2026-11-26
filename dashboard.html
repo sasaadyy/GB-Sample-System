@@ -10,11 +10,8 @@
   <header class="topbar">
     <h1>🏭 Factory I — Dashboard</h1>
     <div>
-      <span id="userInfo"></span>
-      <a href="/approval.html" id="approvalLink" class="btn-small" style="display:none">
-        ✅ Approval
-      </a>
-      <button id="logoutBtn" class="btn-small btn-danger">Logout</button>
+      <span id="userInfo">Mode Testing: Darijok</span>
+      <a href="/approval.html" class="btn-small">✅ Approval</a>
     </div>
   </header>
 
@@ -35,7 +32,7 @@
         </tr>
       </thead>
       <tbody id="reqTableBody">
-        <tr><td colspan="5" style="text-align:center">Memuat...</td></tr>
+        <tr><td colspan="5" style="text-align:center">Memuat data dari Supabase...</td></tr>
       </tbody>
     </table>
   </main>
@@ -43,46 +40,29 @@
   <script type="module">
     import { supabase } from '/js/supabase.js';
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) location.href = '/index.html';
+    // --- DUMMY USER UNTUK TESTING ---
+    // Gunakan ID user asli yang sudah Anda buat di Supabase Authentication
+    const DUMMY_USER_ID = 'a2d6e0a1-bb3a-48af-b308-90268502'; // Ganti dengan UUID user Anda
+    const DUMMY_PIC = 'Darijok';
 
-    // Profile
-    const { data: profile } = await supabase
-      .from('profiles').select('full_name,pic_code,role')
-      .eq('id', session.user.id).single();
-    document.getElementById('userInfo').textContent =
-      `${profile?.full_name} (${profile?.pic_code})`;
+    document.getElementById('userInfo').textContent = `Mode Testing (${DUMMY_PIC})`;
 
-    if (['supervisor','admin'].includes(profile?.role)) {
-      document.getElementById('approvalLink').style.display = 'inline-block';
-    }
-
-    // Logout
-    document.getElementById('logoutBtn').onclick = async () => {
-      await supabase.auth.signOut();
-      location.href = '/index.html';
-    };
-
-    // Cek dokumen hari ini
     const today = new Date().toISOString().slice(0,10);
     const { data: todayDoc } = await supabase
       .from('requests')
       .select('id,status')
-      .eq('pic_id', session.user.id)
+      .eq('pic_id', DUMMY_USER_ID)
       .eq('tanggal', today)
       .maybeSingle();
 
     const newBtn = document.getElementById('newBtn');
     if (todayDoc) {
       newBtn.textContent = `📝 Lanjut Dokumen Hari Ini (${todayDoc.status})`;
-    } else {
-      newBtn.textContent = '+ Buat Dokumen Hari Ini';
     }
     newBtn.onclick = () => {
       location.href = todayDoc ? `/form.html?id=${todayDoc.id}` : '/form.html';
     };
 
-    // Load list
     const tbody = document.getElementById('reqTableBody');
     const { data: reqs, error } = await supabase
       .from('requests')
@@ -90,7 +70,7 @@
       .order('created_at', { ascending: false });
 
     if (error) {
-      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#dc2626">${error.message}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#dc2626">Error: ${error.message}</td></tr>`;
     } else if (!reqs?.length) {
       tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">Belum ada dokumen</td></tr>';
     } else {
@@ -101,12 +81,8 @@
           <td>${r.surindo_pic}</td>
           <td><span class="badge ${r.status}">${r.status.replace('_',' ')}</span></td>
           <td>
-            ${r.status === 'draft' || r.status === 'rejected'
-              ? `<a href="/form.html?id=${r.id}" class="btn-small">✏️ Edit</a>`
-              : `<a href="/form.html?id=${r.id}" class="btn-small">👁 Lihat</a>`}
-            ${r.status === 'approved'
-              ? `<button class="btn-small" onclick="printPdf('${r.id}')">📄 PDF</button>`
-              : ''}
+            <a href="/form.html?id=${r.id}" class="btn-small">✏️ Buka</a>
+            ${r.status === 'approved' ? `<button class="btn-small" onclick="printPdf('${r.id}')">📄 PDF</button>` : ''}
           </td>
         </tr>
       `).join('');
