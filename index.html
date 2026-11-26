@@ -3,156 +3,92 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Input Request - Master Data System</title>
+  <title>Login — Factory I</title>
   <link rel="stylesheet" href="/css/style.css" />
 </head>
-<body>
-  <header class="topbar">
-    <h1>📋 Form Input Request</h1>
-    <nav>
-      <a href="/index.html" class="active">Input</a>
-      <a href="/data.html">Data Tersimpan</a>
-    </nav>
-  </header>
+<body class="center-page">
+  <div class="card auth-card">
+    <h1>🏭 Factory I Portal</h1>
 
-  <main class="container">
-    <form id="requestForm" class="card">
-      <div class="form-row">
-        <label>Request Number (auto)</label>
-        <input type="text" id="requestNumber" readonly />
-        <button type="button" id="regenReqNum" class="btn-secondary">↻ Regenerate</button>
-      </div>
+    <div class="tabs">
+      <button type="button" class="tab active" data-tab="login">Login</button>
+      <button type="button" class="tab" data-tab="register">Register</button>
+    </div>
 
-      <div class="form-row">
-        <label>Tanggal</label>
-        <input type="date" id="tanggal" required />
-      </div>
-
-      <div class="form-row">
-        <label>Movement</label>
-        <select id="movement" required>
-          <option value="">-- Pilih --</option>
-          <option value="LOCAL">LOCAL</option>
-          <option value="EXPORT">EXPORT</option>
-        </select>
-      </div>
-
-      <div class="form-row">
-        <label>Category</label>
-        <select id="category" required>
-          <option value="">-- Pilih --</option>
-          <option>Final Ball</option>
-          <option>Finish Ball</option>
-          <option>Core Ball</option>
-          <option>Packaging</option>
-          <option>Mold & Spare Part Mold</option>
-          <option>Carton Box</option>
-          <option>Material Sample</option>
-          <option>Resin</option>
-          <option>Others</option>
-        </select>
-      </div>
-
-      <div class="form-row">
-        <label>Factory Code</label>
-        <select id="factoryCode">
-          <option value="">-- Pilih --</option>
-          <option>I</option>
-          <option>II</option>
-        </select>
-      </div>
-
-      <div class="form-row">
-        <label>SURINDO PIC</label>
-        <select id="surindoPic">
-          <option value="">-- Pilih --</option>
-          <option>Darijok</option>
-          <option>Angga</option>
-          <option>Vera</option>
-          <option>Rian</option>
-          <option>Ayadi</option>
-          <option>Huda</option>
-          <option>Mumuh</option>
-        </select>
-      </div>
-
-      <div class="form-row">
-        <label>Purpose</label>
-        <input type="text" id="purpose" placeholder="cth: Sample Test Paint" />
-      </div>
-
-      <hr />
-
-      <h3>Detail Part</h3>
-      <div class="form-row">
-        <label>Part Name</label>
-        <input type="text" id="partName" required placeholder="cth: 2P420 WH2[DL_S] (1)" />
+    <form id="authForm">
+      <div id="regFields" style="display:none">
+        <div class="form-row">
+          <label>Nama Lengkap</label>
+          <input type="text" id="fullName" />
+        </div>
+        <div class="form-row">
+          <label>PIC Code (cth: Darijok)</label>
+          <input type="text" id="picCode" />
+        </div>
       </div>
       <div class="form-row">
-        <label>Part No</label>
-        <input type="text" id="partNo" required placeholder="cth: FG15SR244B" />
+        <label>Email</label>
+        <input type="email" id="email" required />
       </div>
       <div class="form-row">
-        <label>Core</label>
-        <input type="text" id="core" />
+        <label>Password (min 6)</label>
+        <input type="password" id="password" minlength="6" required />
       </div>
-      <div class="form-row">
-        <label>Resin</label>
-        <input type="text" id="resin" />
-      </div>
-      <div class="form-row">
-        <label>Unit</label>
-        <select id="unit">
-          <option>DOZEN</option>
-          <option>PCS</option>
-          <option>SET</option>
-        </select>
-      </div>
-      <div class="form-row">
-        <label>Item</label>
-        <input type="text" id="item" placeholder="cth: GOLF BALL" />
-      </div>
-      <div class="form-row">
-        <label>Quantity</label>
-        <input type="number" id="qty" min="1" value="1" required />
-      </div>
-
-      <hr />
-
-      <h3>Supplier / Pengirim</h3>
-      <div class="form-row">
-        <label>Supp_Id</label>
-        <input type="text" id="suppId" placeholder="cth: SRI00002" />
-      </div>
-      <div class="form-row">
-        <label>SuppDesc</label>
-        <input type="text" id="suppDesc" />
-      </div>
-      <div class="form-row">
-        <label>PIC_Name</label>
-        <input type="text" id="picName" />
-      </div>
-      <div class="form-row">
-        <label>Address</label>
-        <textarea id="address" rows="2"></textarea>
-      </div>
-      <div class="form-row">
-        <label>Telp</label>
-        <input type="text" id="tlp" />
-      </div>
-      <div class="form-row">
-        <label>Fax</label>
-        <input type="text" id="fax" />
-      </div>
-
-      <div class="actions">
-        <button type="submit" class="btn-primary">💾 Simpan Data</button>
-        <button type="reset" class="btn-secondary">Reset</button>
-      </div>
+      <button type="submit" class="btn-primary full" id="submitBtn">Masuk</button>
     </form>
-  </main>
+    <p class="msg" id="msg"></p>
+  </div>
 
-  <script src="/js/storage.js"></script>
-  <script src="/js/app.js"></script>
+  <script type="module">
+    import { supabase } from '/js/supabase.js';
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) location.href = '/dashboard.html';
+
+    let mode = 'login';
+    document.querySelectorAll('.tab').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        mode = btn.dataset.tab;
+        document.getElementById('regFields').style.display =
+          mode === 'register' ? 'block' : 'none';
+        document.getElementById('submitBtn').textContent =
+          mode === 'register' ? 'Daftar' : 'Masuk';
+        document.getElementById('msg').textContent = '';
+      };
+    });
+
+    document.getElementById('authForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById('msg');
+      msg.textContent = 'Memproses...';
+      msg.className = 'msg';
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      try {
+        if (mode === 'register') {
+          const fullName = document.getElementById('fullName').value.trim();
+          const picCode  = document.getElementById('picCode').value.trim();
+          if (!fullName || !picCode) throw new Error('Nama & PIC Code wajib diisi');
+          const { error } = await supabase.auth.signUp({
+            email, password,
+            options: { data: { full_name: fullName, pic_code: picCode } }
+          });
+          if (error) throw error;
+          msg.className = 'msg success';
+          msg.textContent = '✅ Berhasil daftar. Cek email untuk verifikasi.';
+        } else {
+          const { error } = await supabase.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+          location.href = '/dashboard.html';
+        }
+      } catch (err) {
+        msg.className = 'msg error';
+        msg.textContent = '❌ ' + err.message;
+      }
+    };
+  </script>
 </body>
 </html>
