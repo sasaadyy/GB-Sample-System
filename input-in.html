@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <title>Input IN</title>
+  <title>Database IN</title>
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
@@ -14,110 +14,82 @@
     <a href="/report.html">📑 Report</a>
     <a href="/index.html" style="margin-top: auto;">🚪 Logout</a>
   </div>
-  
+
   <div class="main-content">
-    <div class="topbar"><h3>Input GB Sample (IN)</h3></div>
+    <div class="topbar">
+      <h3>Database Barang Masuk (IN)</h3>
+    </div>
+    
     <div class="container">
       <div class="card">
-        <h3>Data IN</h3>
-        
-        <div class="grid-2">
-          <div class="form-row">
-            <label>Tanggal</label>
-            <input type="date" id="inDate" />
-          </div>
-          <div class="form-row">
-            <label>Kategori</label>
-            <select id="inCat">
-              <option value="Final Ball">Final Ball</option>
-              <option value="Finish Ball">Finish Ball</option>
-              <option value="Core Ball">Core Ball</option>
-              <option value="Packaging">Packaging</option>
-              <option value="Mold">Mold</option>
-            </select>
-          </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h3 style="margin: 0;">Riwayat Data IN</h3>
+          <a href="/form-in.html" class="btn btn-primary">+ Tambah Input IN</a>
         </div>
 
-        <div class="grid-2">
-          <div class="form-row">
-            <label>Part Name</label>
-            <select id="inPartName" onchange="autoFillIN()">
-              <option value="">-- Pilih Part Name --</option>
-            </select>
-          </div>
-          <div class="form-row">
-            <label>Part Number</label>
-            <input type="text" id="inPartNo" readonly placeholder="Otomatis terisi..." />
-          </div>
-        </div>
-
-        <div class="form-row">
-          <label>Qty IN</label>
-          <input type="number" id="inQty" min="1" />
-        </div>
-
-        <button class="btn btn-success" onclick="simpanIN()" style="margin-top: 15px;">Simpan IN</button>
+        <table>
+          <thead>
+            <tr>
+              <th>Tanggal</th>
+              <th>Kategori</th>
+              <th>Part Name</th>
+              <th>Part Number</th>
+              <th>Qty IN</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tableINBody">
+            <!-- Diisi JS -->
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
 
-  <script src="/js/masterData.js"></script>
   <script>
-    // 1. Isi Dropdown Part Name
-    const partSel = document.getElementById('inPartName');
-    MASTER_PARTS.forEach(p => {
-      partSel.innerHTML += `<option value="${p.part_no}">${p.part_name}</option>`;
-    });
+    let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+    // Filter hanya tipe IN
+    let dataIN = allRequests.filter(r => r.type === 'IN');
 
-    // 2. Set Tanggal Default Hari Ini
-    document.getElementById('inDate').value = new Date().toISOString().slice(0,10);
+    const tbody = document.getElementById('tableINBody');
 
-    // 3. Auto-fill Part Number saat Part Name dipilih
-    function autoFillIN() {
-      const selectedPartNo = document.getElementById('inPartName').value;
-      const partData = MASTER_PARTS.find(p => p.part_no === selectedPartNo);
-      
-      if (partData) {
-        document.getElementById('inPartNo').value = partData.part_no;
-        // Opsional: Jika ingin kategori ikut berubah otomatis sesuai part yang dipilih
-        // document.getElementById('inCat').value = partData.category;
-      } else {
-        document.getElementById('inPartNo').value = '';
-      }
-    }
-
-    // 4. Simpan Data
-    function simpanIN() {
-      const qty = Number(document.getElementById('inQty').value);
-      const partNo = document.getElementById('inPartName').value;
-      const partData = MASTER_PARTS.find(p => p.part_no === partNo);
-      
-      if (!partData || qty <= 0) {
-        return alert('Pilih Part Name dan isi Qty dengan benar!');
+    function renderTable() {
+      if (dataIN.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center">Belum ada data IN. Silakan tambah.</td></tr>';
+        return;
       }
 
-      const newDoc = {
-        id: 'req-' + Date.now(),
-        request_no: 'IN-26-' + String(Math.floor(Math.random() * 9000) + 1000),
-        type: 'IN',
-        tanggal: document.getElementById('inDate').value,
-        category: document.getElementById('inCat').value, // Ambil dari dropdown kategori
-        item: { 
-          part_name: partData.part_name, 
-          part_no: partData.part_no, 
-          qty: qty 
-        },
-        created_at: new Date().toISOString()
-      };
+      // Urutkan dari yang terbaru
+      dataIN.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
 
-      // Simpan ke LocalStorage
-      let reqs = JSON.parse(localStorage.getItem('requests') || '[]');
-      reqs.push(newDoc);
-      localStorage.setItem('requests', JSON.stringify(reqs));
-      
-      alert('Data IN berhasil disimpan!');
-      window.location.href = '/dashboard.html';
+      tbody.innerHTML = dataIN.map(r => `
+        <tr>
+          <td>${r.tanggal}</td>
+          <td>${r.category}</td>
+          <td>${r.item.part_name}</td>
+          <td>${r.item.part_no}</td>
+          <td>${r.item.qty}</td>
+          <td>
+            <button class="btn btn-danger btn-small" onclick="hapusIN('${r.id}')">Hapus</button>
+          </td>
+        </tr>
+      `).join('');
     }
+
+    function hapusIN(id) {
+      if (!confirm('Yakin ingin menghapus data IN ini?')) return;
+      
+      // Hapus dari array utama
+      allRequests = allRequests.filter(r => r.id !== id);
+      localStorage.setItem('requests', JSON.stringify(allRequests));
+      
+      // Update dataIN dan render ulang
+      dataIN = allRequests.filter(r => r.type === 'IN');
+      renderTable();
+    }
+
+    // Render awal
+    renderTable();
   </script>
 </body>
 </html>
