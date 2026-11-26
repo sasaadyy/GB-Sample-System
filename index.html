@@ -2,67 +2,12 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login — Factory I</title>
-  <link rel="stylesheet" href="/css/style.css" />
+  <title>Redirecting...</title>
 </head>
-<body class="center-page">
-  <div class="card auth-card">
-    <h1>🏭 Factory I Portal</h1>
-
-    <!-- Area Login -->
-    <form id="authForm">
-      <div class="form-row">
-        <label>Email</label>
-        <input type="email" id="email" required placeholder="Masukkan email Anda" />
-      </div>
-      <div class="form-row">
-        <label>Password</label>
-        <input type="password" id="password" required placeholder="Masukkan password" />
-      </div>
-      <button type="submit" class="btn-primary full" id="submitBtn">Masuk</button>
-    </form>
-    
-    <p class="msg" id="msg"></p>
-  </div>
-
-  <script type="module">
-    import { supabase } from '/js/supabase.js';
-
-    // Cek apakah user sudah punya sesi (sudah login)
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      location.href = '/dashboard.html';
-    }
-
-    const msg = document.getElementById('msg');
-    const submitBtn = document.getElementById('submitBtn');
-
-    // Event Listener untuk Login
-    document.getElementById('authForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      msg.textContent = 'Memproses...';
-      msg.className = 'msg';
-      submitBtn.disabled = true; // Cegah klik ganda
-      
-      const email = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value;
-
-      try {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        
-        // Jika sukses, pindah ke dashboard
-        location.href = '/dashboard.html';
-        
-      } catch (err) {
-        msg.className = 'msg error';
-        msg.textContent = '❌ Login Gagal: ' + err.message;
-      } finally {
-        submitBtn.disabled = false;
-      }
-    });
+<body>
+  <script>
+    // Langsung lempar ke dashboard tanpa login
+    window.location.href = '/dashboard.html';
   </script>
 </body>
 </html>
