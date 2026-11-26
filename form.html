@@ -22,11 +22,11 @@
       <div class="grid-2">
         <div class="form-row">
           <label>Request No</label>
-          <input type="text" id="requestNo" readonly placeholder="otomatis saat disimpan" />
+          <input type="text" id="requestNo" readonly />
         </div>
         <div class="form-row">
           <label>SURINDO PIC</label>
-          <input type="text" id="surindoPic" readonly />
+          <input type="text" id="surindoPic" value="Darijok" readonly />
         </div>
         <div class="form-row">
           <label>Tanggal</label>
@@ -47,7 +47,6 @@
       </div>
       <div class="actions">
         <button type="button" class="btn-primary" id="saveDokumen">💾 Simpan Dokumen</button>
-        <button type="button" class="btn-secondary" id="resetDokumen">Reset</button>
       </div>
       <p class="msg" id="msgDokumen"></p>
     </section>
@@ -55,59 +54,44 @@
     <!-- ============ TAB 2: BARANG ============ -->
     <section class="card tab-content" id="tab-barang">
       <h2>2. Barang</h2>
-      <div class="form-row">
-        <label>Indicate Document</label>
-        <select id="barangDoc">
-          <option value="">-- Pilih Indicate Document --</option>
-        </select>
-      </div>
       <div class="grid-2">
         <div class="form-row">
           <label>Part Number</label>
-          <select id="partNumber" required>
-            <option value="">-- Pilih Part Number --</option>
-          </select>
+          <input type="text" id="partNumber" placeholder="Ketik Part No..." />
         </div>
         <div class="form-row">
           <label>Part Name</label>
-          <input type="text" id="partName" readonly />
+          <input type="text" id="partName" />
         </div>
         <div class="form-row">
           <label>Unit</label>
-          <input type="text" id="unit" readonly />
+          <input type="text" id="unit" placeholder="PCS / DOZEN / SET" />
         </div>
         <div class="form-row">
-          <label>Saldo Stock (otomatis)</label>
-          <input type="number" id="saldoStock" readonly placeholder="0" />
+          <label>Saldo Stock</label>
+          <input type="number" id="saldoStock" value="0" readonly />
         </div>
         <div class="form-row">
           <label>Qty IN</label>
-          <input type="number" id="qtyIn" min="0" step="0.01" required />
+          <input type="number" id="qtyIn" value="0" min="0" />
         </div>
         <div class="form-row">
           <label>Qty OUT</label>
-          <input type="number" id="qtyOut" min="0" step="0.01" required />
+          <input type="number" id="qtyOut" value="0" min="0" />
         </div>
       </div>
       <div class="actions">
         <button type="button" class="btn-primary" id="addBarang">+ Tambah Barang</button>
-        <button type="button" class="btn-secondary" id="resetBarang">Reset</button>
       </div>
       <p class="msg" id="msgBarang"></p>
       <table>
         <thead>
           <tr>
-            <th>Part Name</th>
-            <th>Part No</th>
-            <th>Unit</th>
-            <th>Qty IN</th>
-            <th>Qty OUT</th>
-            <th>Saldo</th>
-            <th>Aksi</th>
+            <th>Part No</th><th>Part Name</th><th>Unit</th><th>Qty IN</th><th>Qty OUT</th><th>Aksi</th>
           </tr>
         </thead>
         <tbody id="barangTableBody">
-          <tr><td colspan="7" style="text-align:center">Belum ada barang</td></tr>
+          <tr><td colspan="6" style="text-align:center">Belum ada barang</td></tr>
         </tbody>
       </table>
     </section>
@@ -118,34 +102,29 @@
       <div class="grid-2">
         <div class="form-row">
           <label>Jumlah Box</label>
-          <input type="number" id="jumlahBox" min="1" required />
+          <input type="number" id="jumlahBox" min="1" />
         </div>
         <div class="form-row">
           <label>Dimensi (PxLxT cm)</label>
-          <input type="text" id="dimensi" placeholder="40x30x20" required />
+          <input type="text" id="dimensi" placeholder="40x30x20" />
         </div>
         <div class="form-row">
           <label>Gross Weight (Kg)</label>
-          <input type="number" id="grossWeight" min="0.01" step="0.01" required />
+          <input type="number" id="grossWeight" step="0.01" />
         </div>
         <div class="form-row">
           <label>Nett Weight (Kg)</label>
-          <input type="number" id="nettWeight" min="0.01" step="0.01" required />
+          <input type="number" id="nettWeight" step="0.01" />
         </div>
       </div>
       <div class="actions">
         <button type="button" class="btn-primary" id="savePacking">💾 Simpan Packing List</button>
-        <button type="button" class="btn-secondary" id="resetPacking">Reset</button>
       </div>
       <p class="msg" id="msgPacking"></p>
-
-      <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0" />
-
+      <hr style="margin:20px 0; border:none; border-top:1px solid #e2e8f0;" />
       <div class="actions">
-        <button type="button" class="btn-primary" id="sendAll">📤 Send untuk Approval</button>
-        <button type="button" class="btn-secondary" id="downloadPdf">📄 Download PDF</button>
+        <button type="button" class="btn-primary" onclick="window.print()">📄 Cetak PDF (Print Browser)</button>
       </div>
-      <p class="msg" id="msgSend"></p>
     </section>
 
     <!-- TAB NAV -->
