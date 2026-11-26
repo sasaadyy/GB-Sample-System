@@ -8,14 +8,15 @@
 </head>
 <body>
   <header class="topbar">
-    <h1>🏭 Factory I — Dashboard</h1>
-    <div>
-      <span id="userInfo">Mode Testing: Darijok</span>
-      <a href="/approval.html" class="btn-small">✅ Approval</a>
-    </div>
+    <h1>🏭 Factory I — Dashboard (Testing)</h1>
   </header>
 
   <main class="container">
+    <!-- KOTAK PESAN ERROR -->
+    <div id="errorBox" style="display:none; background:#fee2e2; color:#991b1b; padding:15px; border-radius:8px; margin-bottom:20px; font-weight:bold;">
+      Error: <span id="errorText"></span>
+    </div>
+
     <div class="actions-bar">
       <h2>Dokumen Saya</h2>
       <button id="newBtn" class="btn-primary">+ Buat / Lanjut Dokumen Hari Ini</button>
@@ -32,66 +33,65 @@
         </tr>
       </thead>
       <tbody id="reqTableBody">
-        <tr><td colspan="5" style="text-align:center">Memuat data dari Supabase...</td></tr>
+        <tr><td colspan="5" style="text-align:center">Memuat data...</td></tr>
       </tbody>
     </table>
   </main>
 
   <script type="module">
+    // PASTIKAN URL DAN KEY DI js/supabase.js SUDAH BENAR
     import { supabase } from '/js/supabase.js';
 
-    // --- DUMMY USER UNTUK TESTING ---
-    // Gunakan ID user asli yang sudah Anda buat di Supabase Authentication
-    const DUMMY_USER_ID = 'a2d6e0a1-bb3a-48af-b308-90268502'; // Ganti dengan UUID user Anda
-    const DUMMY_PIC = 'Darijok';
+    // 1. TANGKAP ERROR JIKA SUPABASE GAGAL DIMUAT
+    window.addEventListener('error', (e) => {
+      document.getElementById('errorBox').style.display = 'block';
+      document.getElementById('errorText').textContent = e.message;
+    });
 
-    document.getElementById('userInfo').textContent = `Mode Testing (${DUMMY_PIC})`;
-
-    const today = new Date().toISOString().slice(0,10);
-    const { data: todayDoc } = await supabase
-      .from('requests')
-      .select('id,status')
-      .eq('pic_id', DUMMY_USER_ID)
-      .eq('tanggal', today)
-      .maybeSingle();
-
+    // 2. SETUP TOMBOL LANGSUNG SAAT HALAMAN DIMUAT
     const newBtn = document.getElementById('newBtn');
-    if (todayDoc) {
-      newBtn.textContent = `📝 Lanjut Dokumen Hari Ini (${todayDoc.status})`;
-    }
+    
+    // Tombol ini akan selalu bisa diklik
     newBtn.onclick = () => {
-      location.href = todayDoc ? `/form.html?id=${todayDoc.id}` : '/form.html';
+      // Cek dulu apakah dokumen hari ini sudah ada
+      location.href = '/form.html'; 
     };
 
-    const tbody = document.getElementById('reqTableBody');
-    const { data: reqs, error } = await supabase
-      .from('requests')
-      .select('id,request_no,tanggal,surindo_pic,status')
-      .order('created_at', { ascending: false });
+    // 3. COBA AMBIL DATA DARI SUPABASE
+    async function loadData() {
+      try {
+        const tbody = document.getElementById('reqTableBody');
+        
+        // Kita coba ambil data dari tabel requests
+        const { data, error } = await supabase
+          .from('requests')
+          .select('id,request_no,tanggal,surindo_pic,status');
 
-    if (error) {
-      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#dc2626">Error: ${error.message}</td></tr>`;
-    } else if (!reqs?.length) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">Belum ada dokumen</td></tr>';
-    } else {
-      tbody.innerHTML = reqs.map(r => `
-        <tr>
-          <td><strong>${r.request_no}</strong></td>
-          <td>${r.tanggal}</td>
-          <td>${r.surindo_pic}</td>
-          <td><span class="badge ${r.status}">${r.status.replace('_',' ')}</span></td>
-          <td>
-            <a href="/form.html?id=${r.id}" class="btn-small">✏️ Buka</a>
-            ${r.status === 'approved' ? `<button class="btn-small" onclick="printPdf('${r.id}')">📄 PDF</button>` : ''}
-          </td>
-        </tr>
-      `).join('');
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">Database kosong / Belum ada dokumen</td></tr>';
+        } else {
+          tbody.innerHTML = data.map(r => `
+            <tr>
+              <td><strong>${r.request_no}</strong></td>
+              <td>${r.tanggal}</td>
+              <td>${r.surindo_pic}</td>
+              <td><span class="badge ${r.status}">${r.status}</span></td>
+              <td><a href="/form.html?id=${r.id}" class="btn-small">Buka</a></td>
+            </tr>
+          `).join('');
+        }
+      } catch (err) {
+        // Jika Supabase error, tampilkan di kotak merah
+        document.getElementById('errorBox').style.display = 'block';
+        document.getElementById('errorText').textContent = err.message;
+        document.getElementById('reqTableBody').innerHTML = '<tr><td colspan="5" style="text-align:center">Gagal memuat data</td></tr>';
+      }
     }
 
-    window.printPdf = async (id) => {
-      const { generatePdf } = await import('/js/pdf.js');
-      generatePdf(id);
-    };
+    // Jalankan fungsi ambil data
+    loadData();
   </script>
 </body>
 </html>
