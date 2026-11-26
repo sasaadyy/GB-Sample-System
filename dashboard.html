@@ -2,27 +2,79 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <title>Dashboard Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Factory I</title>
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
   <header class="topbar">
-    <h1>🏭 Dashboard Test</h1>
+    <h1>🏭 Factory I — Dashboard (Local Storage)</h1>
+    <div>
+      <span>Mode Testing</span>
+      <button onclick="resetData()" class="btn-small btn-danger">Hapus Semua Data</button>
+    </div>
   </header>
 
   <main class="container">
     <div class="actions-bar">
       <h2>Dokumen Saya</h2>
-      
-      <!-- TOMBOL HTML MURNI (TANPA JS) -->
-      <a href="/form.html" class="btn-primary" style="display:inline-block; text-align:center;">
-        + Buat Dokumen (Uji Link HTML)
-      </a>
+      <a href="/form.html" class="btn-primary" style="text-decoration:none;">+ Buat Dokumen Baru</a>
     </div>
-    
-    <p style="margin-top: 20px; color: #475569;">
-      Jika tombol di atas bisa diklik dan berpindah halaman, berarti HTML & CSS Anda normal. Masalahnya ada di JavaScript/Supabase.
-    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Request No</th>
+          <th>Tanggal</th>
+          <th>PIC</th>
+          <th>Status</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody id="reqTableBody">
+        <!-- Data akan diisi JS -->
+      </tbody>
+    </table>
   </main>
+
+  <script type="module">
+    // Ambil data dari LocalStorage
+    const dataReq = JSON.parse(localStorage.getItem('requests') || '[]');
+    const tbody = document.getElementById('reqTableBody');
+
+    if (dataReq.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">Belum ada dokumen. Silakan buat baru.</td></tr>';
+    } else {
+      // Urutkan dari yang terbaru
+      dataReq.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+      
+      tbody.innerHTML = dataReq.map(r => `
+        <tr>
+          <td><strong>${r.request_no}</strong></td>
+          <td>${r.tanggal}</td>
+          <td>${r.surindo_pic}</td>
+          <td><span class="badge ${r.status}">${r.status.replace('_',' ')}</span></td>
+          <td>
+            <a href="/form.html?id=${r.id}" class="btn-small">Buka</a>
+            <button class="btn-small btn-danger" onclick="hapusReq('${r.id}')">Hapus</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    window.hapusReq = (id) => {
+      if (!confirm('Hapus dokumen ini?')) return;
+      let data = JSON.parse(localStorage.getItem('requests') || '[]');
+      data = data.filter(r => r.id !== id);
+      localStorage.setItem('requests', JSON.stringify(data));
+      location.reload();
+    };
+
+    window.resetData = () => {
+      if (!confirm('Hapus SEMUA data?')) return;
+      localStorage.clear();
+      location.reload();
+    };
+  </script>
 </body>
 </html>
