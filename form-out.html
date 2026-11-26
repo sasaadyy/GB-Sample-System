@@ -1,1 +1,260 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Form Input OUT</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="sidebar">
+    <h2>Factory 1</h2>
+    <a href="/dashboard.html">📊 Dashboard</a>
+    <a href="/input-in.html">📥 Input IN</a>
+    <a href="/input-out.html" class="active">📤 Input OUT</a>
+    <a href="/report.html">📑 Report</a>
+    <a href="/index.html" style="margin-top: auto;">🚪 Logout</a>
+  </div>
 
+  <div class="main-content">
+    <div class="topbar">
+      <h3>Input Movement GB Sample EXPORT (OUT)</h3>
+      <a href="/input-out.html" class="btn btn-secondary btn-small">← Kembali ke Tabel</a>
+    </div>
+    
+    <div class="container">
+      <!-- HEADER INFO -->
+      <div class="card" style="padding: 15px 24px; display:flex; gap: 30px; background:#e0e7ff;">
+        <div><strong>Request No:</strong> <span id="reqNo">-</span></div>
+        <div><strong>Tanggal:</strong> <span id="reqTgl">-</span></div>
+      </div>
+
+      <div class="tabnav">
+        <button class="active" onclick="switchTab('dokumen', this)">1. Dokumen</button>
+        <button onclick="switchTab('barang', this)">2. Barang</button>
+        <button onclick="switchTab('packing', this)">3. Packing List</button>
+      </div>
+
+      <!-- TAB 1: DOKUMEN -->
+      <div class="card tab-content active" id="tab-dokumen">
+        <h3>Data Dokumen</h3>
+        <div class="grid-2">
+          <div class="form-row">
+            <label>PIC</label>
+            <select id="outPic"><option>Darijok</option><option>Mumuh</option></select>
+          </div>
+          <div class="form-row">
+            <label>Tanggal</label>
+            <input type="date" id="outDate" />
+          </div>
+          <div class="form-row">
+            <label>Id Supplier</label>
+            <select id="suppId" onchange="autoFillSupplier()"><option value="">-- Pilih Supplier --</option></select>
+          </div>
+          <div class="form-row">
+            <label>Desc Supplier</label>
+            <input type="text" id="suppName" readonly />
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Address</label>
+          <textarea id="suppAddress" rows="3" readonly></textarea>
+        </div>
+      </div>
+
+      <!-- TAB 2: BARANG -->
+      <div class="card tab-content" id="tab-barang">
+        <h3>Data Barang</h3>
+        <div class="form-row">
+          <label>Kategori Barang</label>
+          <select id="outCategory">
+            <option value="Final Ball">Final Ball</option>
+            <option value="Finish Ball">Finish Ball</option>
+            <option value="Core Ball">Core Ball</option>
+            <option value="Packaging">Packaging</option>
+            <option value="Mold">Mold</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Part Name</label>
+          <select id="outPartName" onchange="autoFillPart()"><option value="">-- Pilih Part Name --</option></select>
+        </div>
+        <div class="grid-2">
+          <div class="form-row"><label>Part No</label><input type="text" id="outPartNo" readonly /></div>
+          <div class="form-row"><label>Unit</label><input type="text" id="outUnit" readonly /></div>
+          <div class="form-row"><label>Saldo Akhir (Stok)</label><input type="number" id="outSaldo" readonly style="background:#e2e8f0; font-weight:bold;" /></div>
+          <div class="form-row"><label>Qty OUT</label><input type="number" id="outQty" value="0" /></div>
+        </div>
+        <button class="btn btn-primary" onclick="tambahBarang()">Tambah Barang</button>
+        <table>
+          <thead><tr><th>Part Name</th><th>Part No</th><th>Qty OUT</th><th>Aksi</th></tr></thead>
+          <tbody id="listBarang"></tbody>
+        </table>
+      </div>
+
+      <!-- TAB 3: PACKING -->
+      <div class="card tab-content" id="tab-packing">
+        <h3>Packing List</h3>
+        <div id="packingContainer">
+          <div class="packing-row grid-3" style="margin-bottom:10px;">
+            <div class="form-row"><label>Jumlah Box</label><input type="number" class="packBox" /></div>
+            <div class="form-row"><label>Dimensi</label><input type="text" class="packDim" /></div>
+            <div class="form-row"><label>Gross (Kg)</label><input type="number" class="packGross" /></div>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="tambahBox()">+ Tambah Box Lain</button>
+        
+        <hr style="margin: 20px 0;">
+        <button class="btn btn-success" style="width: 100%; padding: 15px; font-size: 16px;" onclick="finalSubmit()">Simpan Semua & Kirim ke Atasan</button>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="/js/masterData.js"></script>
+  <script>
+    // State
+    let currentDoc = {
+      id: 'req-' + Date.now(),
+      request_no: 'OUT-26-' + String(Math.floor(Math.random() * 9000) + 1000),
+      type: 'OUT',
+      tanggal: new Date().toISOString().slice(0,10),
+      status: 'draft',
+      items: [],
+      packing: []
+    };
+
+    document.getElementById('reqNo').textContent = currentDoc.request_no;
+    document.getElementById('reqTgl').textContent = currentDoc.tanggal;
+    document.getElementById('outDate').value = currentDoc.tanggal;
+
+    // Load Dropdowns
+    const suppSel = document.getElementById('suppId');
+    MASTER_SUPPLIERS.forEach(s => suppSel.innerHTML += `<option value="${s.id}">${s.id}</option>`);
+
+    const partSel = document.getElementById('outPartName');
+    MASTER_PARTS.forEach(p => partSel.innerHTML += `<option value="${p.part_no}">${p.part_name}</option>`);
+
+    function switchTab(tab, btn) {
+      document.querySelectorAll('.tabnav button').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + tab).classList.add('active');
+    }
+
+    function autoFillSupplier() {
+      const id = document.getElementById('suppId').value;
+      const supp = MASTER_SUPPLIERS.find(s => s.id === id);
+      if (supp) {
+        document.getElementById('suppName').value = supp.name;
+        document.getElementById('suppAddress').value = supp.address;
+      }
+    }
+
+    // FUNGSI HITUNG SALDO DAN AUTO-FILL
+    function autoFillPart() {
+      const pNo = document.getElementById('outPartName').value;
+      const part = MASTER_PARTS.find(p => p.part_no === pNo);
+      
+      if (part) {
+        document.getElementById('outPartNo').value = part.part_no;
+        document.getElementById('outUnit').value = part.unit;
+
+        // Hitung Saldo Akhir dari LocalStorage
+        let allReqs = JSON.parse(localStorage.getItem('requests') || '[]');
+        let saldo = 0;
+        
+        allReqs.forEach(r => {
+          if (r.type === 'IN' && r.item.part_no === part.part_no) {
+            saldo += Number(r.item.qty);
+          }
+          if (r.type === 'OUT' && r.status === 'approved' && r.items) {
+            r.items.forEach(it => {
+              if (it.part_no === part.part_no) saldo -= Number(it.qty_out);
+            });
+          }
+        });
+
+        document.getElementById('outSaldo').value = saldo;
+      } else {
+        document.getElementById('outPartNo').value = '';
+        document.getElementById('outUnit').value = '';
+        document.getElementById('outSaldo').value = '';
+      }
+    }
+
+    function tambahBarang() {
+      const pName = document.getElementById('outPartName').options[document.getElementById('outPartName').selectedIndex].text;
+      const pNo = document.getElementById('outPartNo').value;
+      const qty = Number(document.getElementById('outQty').value);
+      const saldo = Number(document.getElementById('outSaldo').value);
+      
+      if (!pNo || qty <= 0) return alert('Isi barang dengan benar');
+      if (qty > saldo) return alert('Qty OUT tidak boleh melebihi Saldo Akhir!');
+
+      currentDoc.items.push({ 
+        category: document.getElementById('outCategory').value,
+        part_name: pName, 
+        part_no: pNo, 
+        qty_out: qty 
+      });
+      
+      const tbody = document.getElementById('listBarang');
+      tbody.innerHTML = currentDoc.items.map((it, i) => `
+        <tr><td>${it.part_name}</td><td>${it.part_no}</td><td>${it.qty_out}</td>
+        <td><button class="btn btn-danger btn-small" onclick="hapusBarang(${i})">Hapus</button></td></tr>
+      `).join('');
+
+      // Reset form barang
+      document.getElementById('outQty').value = '0';
+      document.getElementById('outSaldo').value = '';
+      document.getElementById('outPartName').value = '';
+      document.getElementById('outPartNo').value = '';
+      document.getElementById('outUnit').value = '';
+    }
+
+    function hapusBarang(idx) {
+      currentDoc.items.splice(idx, 1);
+      document.getElementById('listBarang').innerHTML = currentDoc.items.map((it, i) => `
+        <tr><td>${it.part_name}</td><td>${it.part_no}</td><td>${it.qty_out}</td>
+        <td><button class="btn btn-danger btn-small" onclick="hapusBarang(${i})">Hapus</button></td></tr>
+      `).join('');
+    }
+
+    function tambahBox() {
+      const container = document.getElementById('packingContainer');
+      const div = document.createElement('div');
+      div.className = 'packing-row grid-3';
+      div.style.marginBottom = '10px';
+      div.innerHTML = `
+        <div class="form-row"><label>Jumlah Box</label><input type="number" class="packBox" /></div>
+        <div class="form-row"><label>Dimensi</label><input type="text" class="packDim" /></div>
+        <div class="form-row"><label>Gross (Kg)</label><input type="number" class="packGross" /></div>
+      `;
+      container.appendChild(div);
+    }
+
+    function finalSubmit() {
+      const rows = document.querySelectorAll('.packing-row');
+      currentDoc.packing = Array.from(rows).map(r => ({
+        jumlah_box: r.querySelector('.packBox').value,
+        dimensi: r.querySelector('.packDim').value,
+        gross: r.querySelector('.packGross').value
+      })).filter(p => p.jumlah_box !== '');
+
+      if (currentDoc.items.length === 0) return alert('Barang belum diisi!');
+      if (currentDoc.packing.length === 0) return alert('Packing List belum diisi!');
+
+      currentDoc.supplier_name = document.getElementById('suppName').value;
+      currentDoc.surindo_pic = document.getElementById('outPic').value;
+      currentDoc.status = 'pending';
+
+      let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+      allRequests.push(currentDoc);
+      localStorage.setItem('requests', JSON.stringify(allRequests));
+
+      alert('Berhasil dikirim ke atasan!');
+      window.location.href = '/input-out.html'; // Kembali ke tabel
+    }
+  </script>
+</body>
+</html>
