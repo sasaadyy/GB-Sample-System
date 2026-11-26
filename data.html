@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Data Tersimpan</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>📂 Data Tersimpan</h1>
+    <nav>
+      <a href="/index.html">Input</a>
+      <a href="/data.html" class="active">Data Tersimpan</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <table id="dataTable">
+      <thead>
+        <tr>
+          <th>Request No</th>
+          <th>Tanggal</th>
+          <th>Movement</th>
+          <th>Category</th>
+          <th>Part No</th>
+          <th>Qty</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </main>
+
+  <script src="/js/storage.js"></script>
+  <script>
+    function renderTable() {
+      const tbody = document.querySelector('#dataTable tbody');
+      const list = getAllData();
+      if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center">Belum ada data</td></tr>';
+        return;
+      }
+      tbody.innerHTML = list.map(d => `
+        <tr>
+          <td>${d.requestNumber}</td>
+          <td>${d.tanggal}</td>
+          <td>${d.movement}</td>
+          <td>${d.category}</td>
+          <td>${d.partNo}</td>
+          <td>${d.qty}</td>
+          <td>
+            <a href="/document.html?req=${encodeURIComponent(d.requestNumber)}" class="btn-small">📄 Dokumen</a>
+            <button onclick="hapus('${d.requestNumber}')" class="btn-small btn-danger">🗑</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function hapus(reqNum) {
+      if (confirm('Hapus data ' + reqNum + '?')) {
+        deleteData(reqNum);
+        renderTable();
+      }
+    }
+
+    renderTable();
+  </script>
+</body>
+</html>
