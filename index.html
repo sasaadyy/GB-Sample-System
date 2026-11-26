@@ -10,85 +10,59 @@
   <div class="card auth-card">
     <h1>🏭 Factory I Portal</h1>
 
-    <div class="tabs">
-      <button type="button" class="tab active" data-tab="login">Login</button>
-      <button type="button" class="tab" data-tab="register">Register</button>
-    </div>
-
+    <!-- Area Login -->
     <form id="authForm">
-      <div id="regFields" style="display:none">
-        <div class="form-row">
-          <label>Nama Lengkap</label>
-          <input type="text" id="fullName" />
-        </div>
-        <div class="form-row">
-          <label>PIC Code (cth: Darijok)</label>
-          <input type="text" id="picCode" />
-        </div>
-      </div>
       <div class="form-row">
         <label>Email</label>
-        <input type="email" id="email" required />
+        <input type="email" id="email" required placeholder="Masukkan email Anda" />
       </div>
       <div class="form-row">
-        <label>Password (min 6)</label>
-        <input type="password" id="password" minlength="6" required />
+        <label>Password</label>
+        <input type="password" id="password" required placeholder="Masukkan password" />
       </div>
       <button type="submit" class="btn-primary full" id="submitBtn">Masuk</button>
     </form>
+    
     <p class="msg" id="msg"></p>
   </div>
 
   <script type="module">
     import { supabase } from '/js/supabase.js';
 
+    // Cek apakah user sudah punya sesi (sudah login)
     const { data: { session } } = await supabase.auth.getSession();
-    if (session) location.href = '/dashboard.html';
+    if (session) {
+      location.href = '/dashboard.html';
+    }
 
-    let mode = 'login';
-    document.querySelectorAll('.tab').forEach(btn => {
-      btn.onclick = () => {
-        document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        mode = btn.dataset.tab;
-        document.getElementById('regFields').style.display =
-          mode === 'register' ? 'block' : 'none';
-        document.getElementById('submitBtn').textContent =
-          mode === 'register' ? 'Daftar' : 'Masuk';
-        document.getElementById('msg').textContent = '';
-      };
-    });
+    const msg = document.getElementById('msg');
+    const submitBtn = document.getElementById('submitBtn');
 
-    document.getElementById('authForm').onsubmit = async (e) => {
+    // Event Listener untuk Login
+    document.getElementById('authForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const msg = document.getElementById('msg');
+      
       msg.textContent = 'Memproses...';
       msg.className = 'msg';
+      submitBtn.disabled = true; // Cegah klik ganda
+      
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
 
       try {
-        if (mode === 'register') {
-          const fullName = document.getElementById('fullName').value.trim();
-          const picCode  = document.getElementById('picCode').value.trim();
-          if (!fullName || !picCode) throw new Error('Nama & PIC Code wajib diisi');
-          const { error } = await supabase.auth.signUp({
-            email, password,
-            options: { data: { full_name: fullName, pic_code: picCode } }
-          });
-          if (error) throw error;
-          msg.className = 'msg success';
-          msg.textContent = '✅ Berhasil daftar. Cek email untuk verifikasi.';
-        } else {
-          const { error } = await supabase.auth.signInWithPassword({ email, password });
-          if (error) throw error;
-          location.href = '/dashboard.html';
-        }
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        
+        // Jika sukses, pindah ke dashboard
+        location.href = '/dashboard.html';
+        
       } catch (err) {
         msg.className = 'msg error';
-        msg.textContent = '❌ ' + err.message;
+        msg.textContent = '❌ Login Gagal: ' + err.message;
+      } finally {
+        submitBtn.disabled = false;
       }
-    };
+    });
   </script>
 </body>
 </html>
