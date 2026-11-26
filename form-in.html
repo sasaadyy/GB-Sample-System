@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Form Input IN</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="sidebar">
+    <h2>Factory 1</h2>
+    <a href="/dashboard.html">📊 Dashboard</a>
+    <a href="/input-in.html" class="active">📥 Input IN</a>
+    <a href="/input-out.html">📤 Input OUT</a>
+    <a href="/report.html">📑 Report</a>
+    <a href="/index.html" style="margin-top: auto;">🚪 Logout</a>
+  </div>
+  
+  <div class="main-content">
+    <div class="topbar">
+      <h3>Form Tambah Data IN</h3>
+      <a href="/input-in.html" class="btn btn-secondary btn-small">← Kembali ke Tabel</a>
+    </div>
+    
+    <div class="container">
+      <div class="card">
+        <h3>Data IN</h3>
+        
+        <div class="grid-2">
+          <div class="form-row">
+            <label>Tanggal</label>
+            <input type="date" id="inDate" />
+          </div>
+          <div class="form-row">
+            <label>Kategori</label>
+            <select id="inCat">
+              <option value="Final Ball">Final Ball</option>
+              <option value="Finish Ball">Finish Ball</option>
+              <option value="Core Ball">Core Ball</option>
+              <option value="Packaging">Packaging</option>
+              <option value="Mold">Mold</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="form-row">
+            <label>Part Name</label>
+            <select id="inPartName" onchange="autoFillIN()">
+              <option value="">-- Pilih Part Name --</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Part Number</label>
+            <input type="text" id="inPartNo" readonly placeholder="Otomatis terisi..." />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label>Qty IN</label>
+          <input type="number" id="inQty" min="1" />
+        </div>
+
+        <button class="btn btn-success" onclick="simpanIN()" style="margin-top: 15px;">Simpan IN</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/masterData.js"></script>
+  <script>
+    // 1. Isi Dropdown Part Name
+    const partSel = document.getElementById('inPartName');
+    MASTER_PARTS.forEach(p => {
+      partSel.innerHTML += `<option value="${p.part_no}">${p.part_name}</option>`;
+    });
+
+    // 2. Set Tanggal Default Hari Ini
+    document.getElementById('inDate').value = new Date().toISOString().slice(0,10);
+
+    // 3. Auto-fill Part Number
+    function autoFillIN() {
+      const selectedPartNo = document.getElementById('inPartName').value;
+      const partData = MASTER_PARTS.find(p => p.part_no === selectedPartNo);
+      
+      if (partData) {
+        document.getElementById('inPartNo').value = partData.part_no;
+      } else {
+        document.getElementById('inPartNo').value = '';
+      }
+    }
+
+    // 4. Simpan Data
+    function simpanIN() {
+      const qty = Number(document.getElementById('inQty').value);
+      const partNo = document.getElementById('inPartName').value;
+      const partData = MASTER_PARTS.find(p => p.part_no === partNo);
+      
+      if (!partData || qty <= 0) {
+        return alert('Pilih Part Name dan isi Qty dengan benar!');
+      }
+
+      const newDoc = {
+        id: 'req-' + Date.now(),
+        request_no: 'IN-26-' + String(Math.floor(Math.random() * 9000) + 1000),
+        type: 'IN',
+        tanggal: document.getElementById('inDate').value,
+        category: document.getElementById('inCat').value,
+        item: { 
+          part_name: partData.part_name, 
+          part_no: partData.part_no, 
+          qty: qty 
+        },
+        created_at: new Date().toISOString()
+      };
+
+      let reqs = JSON.parse(localStorage.getItem('requests') || '[]');
+      reqs.push(newDoc);
+      localStorage.setItem('requests', JSON.stringify(reqs));
+      
+      alert('Data IN berhasil disimpan!');
+      window.location.href = '/input-in.html'; // Kembali ke tabel, bukan dashboard
+    }
+  </script>
+</body>
+</html>
