@@ -2,67 +2,126 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <title>Dashboard — Factory I</title>
+  <title>Dashboard</title>
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
-  <header class="topbar">
-    <h1>🏭 Factory I — Dashboard</h1>
-  </header>
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <h2>Factory Golf Ball 1</h2>
+    <a href="/dashboard.html" class="active">📊 Dashboard</a>
+    <a href="/input-in.html">📥 Input IN</a>
+    <a href="/input-out.html">📤 Input OUT</a>
+    <a href="/report.html">📑 Report</a>
+  </div>
 
-  <main class="container">
-    <div class="actions-bar" style="display:flex; justify-content:space-between; margin-bottom:20px;">
-      <h2 style="margin:0;">Riwayat Dokumen</h2>
-      <div>
-        <a href="/form-in.html" class="btn-primary" style="background:#059669;">+ Input IN</a>
-        <a href="/form-out.html" class="btn-primary" style="background:#dc2626;">+ Input OUT</a>
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+    <div class="topbar">
+      <h3 style="margin:0;">Dashboard Overview</h3>
+      <div>Role: <strong>Admin</strong></div>
+    </div>
+
+    <div class="container">
+      <!-- TOTAL STOK -->
+      <h3>Total Stok Barang (Berdasarkan Kategori)</h3>
+      <div class="grid-3" id="stockContainer">
+        <!-- Diisi JS -->
+      </div>
+
+      <!-- RIWAYAT DOKUMEN -->
+      <h3 style="margin-top: 30px;">Riwayat Dokumen</h3>
+      <div class="card">
+        <table>
+          <thead>
+            <tr>
+              <th>Req No</th>
+              <th>Tipe</th>
+              <th>Tanggal</th>
+              <th>PIC/Supplier</th>
+              <th>Status Approval</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody"></tbody>
+        </table>
       </div>
     </div>
-
-    <div class="card">
-      <table>
-        <thead>
-          <tr>
-            <th>Request No</th>
-            <th>Tipe</th>
-            <th>Tanggal</th>
-            <th>PIC / Supplier</th>
-            <th>Aksi</th>
-          </tr>
-        </thead>
-        <tbody id="reqTableBody"></tbody>
-      </table>
-    </div>
-  </main>
+  </div>
 
   <script>
-    let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
-    const tbody = document.getElementById('reqTableBody');
+    const allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
 
-    if (allRequests.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">Belum ada dokumen. Silakan buat baru.</td></tr>';
+    // 1. Render Stok
+    const stockContainer = document.getElementById('stockContainer');
+    const stockData = {}; 
+    
+    allRequests.forEach(r => {
+      if (r.type === 'IN') {
+        stockData[r.category] = (stockData[r.category] || 0) + Number(r.item.qty);
+      } else if (r.type === 'OUT' && r.status === 'approved') {
+        r.items.forEach(it => {
+          // Asumsi part OUT punya kategori (perlu disesuaikan jika tidak)
+          stockData['Final Ball'] = (stockData['Final Ball'] || 0) - Number(it.qty_out);
+        });
+      }
+    });
+
+    if (Object.keys(stockData).length === 0) {
+      stockContainer.innerHTML = '<div class="card" style="grid-column: 1/-1; text-align:center;">Belum ada data stok</div>';
     } else {
-      allRequests.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
-      
-      tbody.innerHTML = allRequests.map(r => `
-        <tr>
-          <td><strong>${r.request_no}</strong></td>
-          <td><span class="badge ${r.type === 'IN' ? 'in' : 'out'}">${r.type}</span></td>
-          <td>${r.tanggal}</td>
-          <td>${r.type === 'IN' ? r.purpose : r.supplier_name}</td>
-          <td>
-            <a href="/form-${r.type.toLowerCase()}.html?id=${r.id}" class="btn-small">Buka</a>
-            <button class="btn-small btn-danger" onclick="hapusReq('${r.id}')">Hapus</button>
-          </td>
-        </tr>
-      `).join('');
+      for (const [cat, total] of Object.entries(stockData)) {
+        stockContainer.innerHTML += `
+          <div class="card">
+            <div style="font-size: 13px; color: #64748b;">${cat}</div>
+            <div style="font-size: 24px; font-weight: bold; color: #1e3a8a;">${total}</div>
+          </div>
+        `;
+      }
     }
 
-    function hapusReq(id) {
-      if (!confirm('Hapus dokumen ini?')) return;
-      allRequests = allRequests.filter(r => r.id !== id);
-      localStorage.setItem('requests', JSON.stringify(allRequests));
-      location.reload();
+    // 2. Render Riwayat
+    const historyBody = document.getElementById('historyBody');
+    allRequests.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+    
+    if (allRequests.length === 0) {
+      historyBody.innerHTML = '<tr><td colspan="6" style="text-align:center">Belum ada riwayat</td></tr>';
+    } else {
+      historyBody.innerHTML = allRequests.map(r => {
+        let statusBadge = '-';
+        if (r.type === 'OUT') {
+          if (r.status === 'pending') statusBadge = '<span class="badge" style="background:#fef3c7;color:#92400e;">Pending Approval</span>';
+          else if (r.status === 'approved') statusBadge = '<span class="badge" style="background:#d1fae5;color:#065f46;">Approved</span>';
+          else if (r.status === 'rejected') statusBadge = '<span class="badge" style="background:#fee2e2;color:#991b1b;">Rejected</span>';
+          else statusBadge = '<span class="badge" style="background:#e2e8f0;color:#475569;">Draft</span>';
+        }
+
+        return `
+          <tr>
+            <td>${r.request_no}</td>
+            <td>${r.type}</td>
+            <td>${r.tanggal}</td>
+            <td>${r.type === 'IN' ? r.purpose : r.supplier_name}</td>
+            <td>${statusBadge}</td>
+            <td>
+              ${r.type === 'OUT' && r.status === 'pending' 
+                ? `<button class="btn btn-success btn-small" onclick="approve('${r.id}')">Approve</button>` 
+                : (r.type === 'OUT' ? `<a href="/preview.html?id=${r.id}" class="btn btn-primary btn-small">Preview TR</a>` : '')
+              }
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function approve(id) {
+      const reqs = JSON.parse(localStorage.getItem('requests') || '[]');
+      const doc = reqs.find(r => r.id === id);
+      if (doc) {
+        doc.status = 'approved';
+        localStorage.setItem('requests', JSON.stringify(reqs));
+        location.reload();
+      }
     }
   </script>
 </body>
