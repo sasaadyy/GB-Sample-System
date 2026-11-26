@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Report</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="sidebar">
+    <h2>Factory 1</h2>
+    <a href="/dashboard.html">📊 Dashboard</a>
+    <a href="/input-in.html">📥 Input IN</a>
+    <a href="/input-out.html">📤 Input OUT</a>
+    <a href="/report.html" class="active">📑 Report</a>
+    <a href="/index.html" style="margin-top: auto;">🚪 Logout</a>
+  </div>
+
+  <div class="main-content">
+    <div class="topbar"><h3>Report Data</h3></div>
+    <div class="container">
+      <div class="card">
+        <div class="grid-3">
+          <div class="form-row">
+            <label>Filter Tipe</label>
+            <select id="filterType">
+              <option value="all">Semua (IN & OUT)</option>
+              <option value="IN">Hanya IN</option>
+              <option value="OUT">Hanya OUT</option>
+            </select>
+          </div>
+          <div class="form-row"><label>Dari Tanggal</label><input type="date" id="startDate" /></div>
+          <div class="form-row"><label>Sampai Tanggal</label><input type="date" id="endDate" /></div>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:10px;">
+          <button class="btn btn-primary" onclick="renderReport()">Terapkan Filter</button>
+          <button class="btn btn-success" onclick="exportCSV()">Export ke CSV / Excel</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <table>
+          <thead>
+            <tr><th>Req No</th><th>Tipe</th><th>Tanggal</th><th>Part / Supplier</th><th>Qty</th><th>Status</th></tr>
+          </thead>
+          <tbody id="reportBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let filteredData = [];
+
+    function renderReport() {
+      const type = document.getElementById('filterType').value;
+      const start = document.getElementById('startDate').value;
+      const end = document.getElementById('endDate').value;
+      
+      let reqs = JSON.parse(localStorage.getItem('requests') || '[]');
+
+      filteredData = reqs.filter(r => {
+        let matchType = type === 'all' || r.type === type;
+        let matchDate = true;
+        if (start) matchDate = matchDate && (r.tanggal >= start);
+        if (end) matchDate = matchDate && (r.tanggal <= end);
+        return matchType && matchDate;
+      });
+
+      document.getElementById('reportBody').innerHTML = filteredData.map(r => `
+        <tr>
+          <td>${r.request_no}</td>
+          <td>${r.type}</td>
+          <td>${r.tanggal}</td>
+          <td>${r.type === 'IN' ? r.item.part_name : r.supplier_name}</td>
+          <td>${r.type === 'IN' ? r.item.qty : r.items.length + ' items'}</td>
+          <td>${r.type === 'OUT' ? r.status : '-'}</td>
+        </tr>
+      `).join('');
+    }
+
+    function exportCSV() {
+      if (filteredData.length === 0) return alert('Tidak ada data untuk di-export');
+
+      let csvContent = "data:text/csv;charset=utf-8,";
+      csvContent += "Request No,Tipe,Tanggal,Deskripsi,Qty,Status\n";
+
+      filteredData.forEach(r => {
+        const desc = r.type === 'IN' ? r.item.part_name : r.supplier_name;
+        const qty = r.type === 'IN' ? r.item.qty : (r.items ? r.items.length + ' items' : 0);
+        const status = r.type === 'OUT' ? r.status : '-';
+        csvContent += `${r.request_no},${r.type},${r.tanggal},"${desc}",${qty},${status}\n`;
+      });
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", "report_tr.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // Render awal
+    renderReport();
+  </script>
+</body>
+</html>
