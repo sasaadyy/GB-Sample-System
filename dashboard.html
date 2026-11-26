@@ -3,78 +3,145 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dashboard — Factory I</title>
+  <title>Dashboard — TR System</title>
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
-  <header class="topbar">
-    <h1>🏭 Factory I — Dashboard (Local Storage)</h1>
-    <div>
-      <span>Mode Testing</span>
-      <button onclick="resetData()" class="btn-small btn-danger">Hapus Semua Data</button>
-    </div>
-  </header>
+  <div class="topbar">
+    <h1>Dokumen Transport Request (TR)</h1>
+  </div>
 
-  <main class="container">
-    <div class="actions-bar">
-      <h2>Dokumen Saya</h2>
-      <a href="/form.html" class="btn-primary" style="text-decoration:none;">+ Buat Dokumen Baru</a>
+  <div class="container">
+    <!-- HEADER FORM -->
+    <div class="form-header">
+      <div class="form-group">
+        <label>Request No.</label>
+        <input type="text" id="searchReq" placeholder="Cari Request No..." />
+      </div>
+      <div class="form-group">
+        <label>Surindo PIC</label>
+        <input type="text" value="Darijok" readonly />
+      </div>
+      <button class="btn" onclick="openModal()" style="height: 30px; margin-top: 5px;">Add Data</button>
     </div>
 
-    <table>
+    <!-- TAB NAV (Sesuai Figma) -->
+    <div class="tabnav">
+      <button class="active">Dokumen</button>
+      <button>Barang</button>
+      <button>Packing List</button>
+    </div>
+
+    <!-- TABEL DATA -->
+    <table class="table-bottom">
       <thead>
         <tr>
-          <th>Request No</th>
+          <th>Request No.</th>
           <th>Tanggal</th>
-          <th>PIC</th>
+          <th>Factory Code</th>
           <th>Status</th>
           <th>Aksi</th>
         </tr>
       </thead>
       <tbody id="reqTableBody">
-        <!-- Data akan diisi JS -->
+        <!-- Diisi JS -->
       </tbody>
     </table>
-  </main>
+  </div>
 
-  <script type="module">
-    // Ambil data dari LocalStorage
-    const dataReq = JSON.parse(localStorage.getItem('requests') || '[]');
-    const tbody = document.getElementById('reqTableBody');
+  <!-- MODAL ADD DATA (Sesuai Figma Kotak Putih Tengah) -->
+  <div class="modal" id="modalAdd">
+    <div class="modal-content">
+      <h2>Form Tambah Dokumen</h2>
+      <div class="form-group">
+        <label>Tanggal</label>
+        <input type="date" id="addTanggal" />
+      </div>
+      <div class="form-group">
+        <label>Factory Code</label>
+        <select id="addFactory">
+          <option value="I">I</option>
+          <option value="II">II</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Surindo PIC</label>
+        <select id="addPic">
+          <option>Darijok</option>
+          <option>Angga</option>
+          <option>Vera</option>
+        </select>
+      </div>
+      <div style="text-align: right; margin-top: 20px;">
+        <button class="btn" onclick="tambahData()">Tambah</button>
+        <button class="btn" onclick="closeModal()">Reset</button>
+      </div>
+    </div>
+  </div>
 
-    if (dataReq.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">Belum ada dokumen. Silakan buat baru.</td></tr>';
-    } else {
-      // Urutkan dari yang terbaru
-      dataReq.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+  <script>
+    let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+
+    function openModal() {
+      document.getElementById('modalAdd').style.display = 'flex';
+      document.getElementById('addTanggal').value = new Date().toISOString().slice(0,10);
+    }
+
+    function closeModal() {
+      document.getElementById('modalAdd').style.display = 'none';
+    }
+
+    function tambahData() {
+      const tgl = document.getElementById('addTanggal').value;
+      const factory = document.getElementById('addFactory').value;
+      const pic = document.getElementById('addPic').value;
+
+      if (!tgl) return alert('Tanggal wajib diisi');
+
+      const newId = 'req-' + Date.now();
+      const year = new Date().getFullYear().toString().slice(-2);
+      const seq = String(allRequests.length + 1).padStart(4, '0');
+
+      const newDoc = {
+        id: newId,
+        request_no: `${factory}-${year}-${seq}`,
+        tanggal: tgl,
+        factory_code: factory,
+        surindo_pic: pic,
+        status: 'draft',
+        items: [],
+        packing: null
+      };
+
+      allRequests.push(newDoc);
+      localStorage.setItem('requests', JSON.stringify(allRequests));
       
-      tbody.innerHTML = dataReq.map(r => `
+      // Lempar ke halaman form detail
+      window.location.href = `/form.html?id=${newId}`;
+    }
+
+    // Render Tabel
+    function renderTable() {
+      const tbody = document.getElementById('reqTableBody');
+      if (allRequests.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; background:#fff;">Belum ada data</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = allRequests.map(r => `
         <tr>
-          <td><strong>${r.request_no}</strong></td>
-          <td>${r.tanggal}</td>
-          <td>${r.surindo_pic}</td>
-          <td><span class="badge ${r.status}">${r.status.replace('_',' ')}</span></td>
-          <td>
-            <a href="/form.html?id=${r.id}" class="btn-small">Buka</a>
-            <button class="btn-small btn-danger" onclick="hapusReq('${r.id}')">Hapus</button>
+          <td style="background:#fff;">${r.request_no}</td>
+          <td style="background:#fff;">${r.tanggal}</td>
+          <td style="background:#fff;">${r.factory_code}</td>
+          <td style="background:#fff;"><span class="badge ${r.status}">${r.status}</span></td>
+          <td style="background:#fff;">
+            <a href="/form.html?id=${r.id}" style="color:blue; text-decoration:underline; font-size:13px;">Buka</a>
           </td>
         </tr>
       `).join('');
     }
 
-    window.hapusReq = (id) => {
-      if (!confirm('Hapus dokumen ini?')) return;
-      let data = JSON.parse(localStorage.getItem('requests') || '[]');
-      data = data.filter(r => r.id !== id);
-      localStorage.setItem('requests', JSON.stringify(data));
-      location.reload();
-    };
-
-    window.resetData = () => {
-      if (!confirm('Hapus SEMUA data?')) return;
-      localStorage.clear();
-      location.reload();
-    };
+    renderTable();
   </script>
 </body>
 </html>
