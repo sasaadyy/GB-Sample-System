@@ -101,18 +101,23 @@
         }
       }
 
-      // ===== Packing list =====
-      let totalWeight = 0;
-      const packingHtml = packing.map((pk, i) => {
-        totalWeight += Number(pk.gross) || 0;
-        return `
-          <tr>
-            <td class="c">Box ${i + 1}</td>
-            <td class="c">${(Number(pk.gross) || 0).toFixed(2)}</td>
-            <td class="c">${esc(pk.dimensi)}</td>
-          </tr>`;
-      }).join('');
-
+     // ===== Packing list =====
+let totalGross = 0, totalNett = 0;
+const packingHtml = packing.map((pk, i) => {
+  const g = Number(pk.gross) || 0;
+  const hasNett = pk.nett !== undefined && pk.nett !== '';
+  const n = Number(pk.nett) || 0;
+  totalGross += g;
+  totalNett += n;
+  const dim = pk.dimensi ? esc(pk.dimensi) + (/cm/i.test(pk.dimensi) ? '' : ' cm') : '';
+  return `
+    <tr>
+      <td class="c">Box ${i + 1}</td>
+      <td class="c">${g.toFixed(2)}</td>
+      <td class="c">${hasNett ? n.toFixed(2) : '-'}</td>
+      <td class="c">${dim}</td>
+    </tr>`;
+}).join('');
       // ===== Destination (nama, alamat, PIC supplier) =====
       const address = doc.supplier_address || (SUPPS.find(s => s.name === doc.supplier_name) || {}).address || '';
       const destLines = [];
