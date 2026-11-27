@@ -35,20 +35,28 @@
         
         <!-- INFO DOKUMEN -->
         <div class="grid-2">
+          <!-- BARU: PIC -->
+          <div class="form-row">
+            <label>PIC</label>
+            <select id="inPic">
+              <option>Darijok</option><option>Mumuh</option><option>Angga</option>
+              <option>Vera</option><option>Rian</option><option>Ayadi</option><option>Huda</option>
+            </select>
+          </div>
           <div class="form-row">
             <label>Tanggal</label>
             <input type="date" id="inDate" />
           </div>
-          <div class="form-row">
-            <label>Kategori</label>
-            <select id="inCat">
-              <option value="Final Ball">Final Ball</option>
-              <option value="Finish Ball">Finish Ball</option>
-              <option value="Core Ball">Core Ball</option>
-              <option value="Packaging">Packaging</option>
-              <option value="Mold">Mold</option>
-            </select>
-          </div>
+        </div>
+        <div class="form-row">
+          <label>Kategori</label>
+          <select id="inCat">
+            <option value="Final Ball">Final Ball</option>
+            <option value="Finish Ball">Finish Ball</option>
+            <option value="Core Ball">Core Ball</option>
+            <option value="Packaging">Packaging</option>
+            <option value="Mold">Mold</option>
+          </select>
         </div>
 
         <hr style="margin: 20px 0; border: 1px dashed #cbd5e1;">
@@ -145,9 +153,8 @@
         return alert('Pilih Part Name dan isi Qty dengan benar!');
       }
 
-      // Tambahkan ke array
       daftarBarang.push({
-        category: document.getElementById('inCat').value, // Simpan kategori saat ini
+        category: document.getElementById('inCat').value,
         part_name: partData.part_name,
         part_no: partData.part_no,
         unit: partData.unit,
@@ -219,12 +226,11 @@
         request_no: newReqNo, 
         type: 'IN',
         tanggal: dateVal,
-        // Gabungkan semua barang ke dalam array `items`
+        surindo_pic: document.getElementById('inPic').value,   // BARU
         items: daftarBarang, 
         created_at: new Date().toISOString()
       };
 
-      // Simpan ke LocalStorage
       allRequests.push(newDoc);
       localStorage.setItem('requests', JSON.stringify(allRequests));
       
