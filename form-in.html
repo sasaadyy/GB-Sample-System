@@ -33,6 +33,7 @@
       <div class="card">
         <h3>Data IN</h3>
         
+        <!-- INFO DOKUMEN -->
         <div class="grid-2">
           <div class="form-row">
             <label>Tanggal</label>
@@ -50,6 +51,9 @@
           </div>
         </div>
 
+        <hr style="margin: 20px 0; border: 1px dashed #cbd5e1;">
+
+        <!-- INPUT BARANG -->
         <div class="grid-2">
           <div class="form-row">
             <label>Part Name</label>
@@ -59,11 +63,10 @@
           </div>
           <div class="form-row">
             <label>Part Number</label>
-            <input type="text" id="inPartNo" disabled placeholder="Otomatis terisi..." />
+            <input type="text" id="inPartNo" disabled placeholder="Otomatis..." />
           </div>
         </div>
 
-        <!-- POSISI DITUKAR: Qty IN di kiri, Unit di kanan -->
         <div class="grid-2">
           <div class="form-row">
             <label>Qty IN</label>
@@ -71,17 +74,44 @@
           </div>
           <div class="form-row">
             <label>Unit</label>
-            <input type="text" id="inUnit" disabled placeholder="Otomatis terisi..." />
+            <input type="text" id="inUnit" disabled placeholder="Otomatis..." />
           </div>
         </div>
 
-        <button class="btn btn-success" onclick="simpanIN()" style="margin-top: 15px;">Simpan IN</button>
+        <!-- Tombol Tambah ke Tabel Sementara -->
+        <button class="btn btn-secondary" onclick="tambahBarangKeTabel()" style="margin-bottom: 20px;">+ Tambah ke Daftar</button>
+
+        <!-- TABEL BARANG SEMENTARA -->
+        <table id="tabelBarangSementara">
+          <thead>
+            <tr>
+              <th>Part Name</th>
+              <th>Part Number</th>
+              <th>Qty IN</th>
+              <th>Unit</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="listBarangBody">
+            <tr><td colspan="5" style="text-align:center">Belum ada barang ditambahkan</td></tr>
+          </tbody>
+        </table>
+
+        <hr style="margin: 20px 0; border: 1px solid #e2e8f0;">
+
+        <!-- Tombol Simpan Semua -->
+        <button class="btn btn-success" style="width: 100%; padding: 15px; font-size: 16px;" onclick="simpanSemuaIN()">
+          💾 Simpan Semua Data IN
+        </button>
       </div>
     </div>
   </div>
 
   <script src="/js/masterData.js"></script>
   <script>
+    // Array untuk menampung barang sementara sebelum disave
+    let daftarBarang = [];
+
     // 1. Isi Dropdown Part Name
     const partSel = document.getElementById('inPartName');
     MASTER_PARTS.forEach(p => {
@@ -105,36 +135,100 @@
       }
     }
 
-    // 4. Simpan Data
-    function simpanIN() {
-      const qty = Number(document.getElementById('inQty').value);
+    // 4. Fungsi Tambah ke Tabel Sementara
+    function tambahBarangKeTabel() {
       const partNo = document.getElementById('inPartName').value;
       const partData = MASTER_PARTS.find(p => p.part_no === partNo);
-      
+      const qty = Number(document.getElementById('inQty').value);
+
       if (!partData || qty <= 0) {
         return alert('Pilih Part Name dan isi Qty dengan benar!');
       }
 
+      // Tambahkan ke array
+      daftarBarang.push({
+        category: document.getElementById('inCat').value, // Simpan kategori saat ini
+        part_name: partData.part_name,
+        part_no: partData.part_no,
+        unit: partData.unit,
+        qty: qty
+      });
+
+      renderTabelSementara();
+      
+      // Reset input barang
+      document.getElementById('inPartName').value = '';
+      document.getElementById('inPartNo').value = '';
+      document.getElementById('inUnit').value = '';
+      document.getElementById('inQty').value = '';
+    }
+
+    // 5. Render Tabel Sementara
+    function renderTabelSementara() {
+      const tbody = document.getElementById('listBarangBody');
+      
+      if (daftarBarang.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">Belum ada barang ditambahkan</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = daftarBarang.map((it, index) => `
+        <tr>
+          <td>${it.part_name}</td>
+          <td>${it.part_no}</td>
+          <td>${it.qty}</td>
+          <td>${it.unit}</td>
+          <td><button class="btn btn-danger btn-small" onclick="hapusBarangSementara(${index})">Hapus</button></td>
+        </tr>
+      `).join('');
+    }
+
+    function hapusBarangSementara(index) {
+      daftarBarang.splice(index, 1);
+      renderTabelSementara();
+    }
+
+    // 6. Fungsi Simpan Semua (Sekali Klik)
+    function simpanSemuaIN() {
+      const dateVal = document.getElementById('inDate').value;
+
+      if (!dateVal) return alert('Tanggal wajib diisi!');
+      if (daftarBarang.length === 0) return alert('Minimal tambahkan 1 barang ke daftar!');
+
+      // --- LOGIKA GENERATE REQUEST NUMBER ---
+      let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+      
+      let maxSeq = 0;
+      allRequests.forEach(r => {
+        if (r.type === 'IN' && r.tanggal === dateVal && r.request_no && r.request_no.startsWith('IN-I-')) {
+          const parts = r.request_no.split('-');
+          if (parts.length === 4) {
+            const seq = parseInt(parts[3], 10);
+            if (seq > maxSeq) maxSeq = seq;
+          }
+        }
+      });
+
+      const year = new Date(dateVal).getFullYear().toString().slice(-2);
+      const nextSeq = String(maxSeq + 1).padStart(3, '0');
+      const newReqNo = `IN-I-${year}-${nextSeq}`;
+      // -----------------------------------------------------------
+
       const newDoc = {
         id: 'req-' + Date.now(),
-        request_no: 'IN-26-' + String(Math.floor(Math.random() * 9000) + 1000),
+        request_no: newReqNo, 
         type: 'IN',
-        tanggal: document.getElementById('inDate').value,
-        category: document.getElementById('inCat').value,
-        item: { 
-          part_name: partData.part_name, 
-          part_no: partData.part_no, 
-          unit: partData.unit, 
-          qty: qty 
-        },
+        tanggal: dateVal,
+        // Gabungkan semua barang ke dalam array `items`
+        items: daftarBarang, 
         created_at: new Date().toISOString()
       };
 
-      let reqs = JSON.parse(localStorage.getItem('requests') || '[]');
-      reqs.push(newDoc);
-      localStorage.setItem('requests', JSON.stringify(reqs));
+      // Simpan ke LocalStorage
+      allRequests.push(newDoc);
+      localStorage.setItem('requests', JSON.stringify(allRequests));
       
-      alert('Data IN berhasil disimpan!');
+      alert(`Data IN berhasil disimpan dengan No: ${newReqNo}`);
       window.location.href = '/input-in.html'; 
     }
   </script>
