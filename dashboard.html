@@ -6,7 +6,6 @@
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
-  <!-- SIDEBAR -->
   <div class="sidebar">
     <h2>Factory Golf Ball 1</h2>
     <a href="/dashboard.html" class="active">📊 Dashboard</a>
@@ -15,7 +14,6 @@
     <a href="/report.html">📑 Report</a>
   </div>
 
-  <!-- MAIN CONTENT -->
   <div class="main-content">
     <div class="topbar">
       <h3 style="margin:0;">Dashboard Overview</h3>
@@ -38,7 +36,7 @@
               <th>Req No</th>
               <th>Tipe</th>
               <th>Tanggal</th>
-              <th>PIC/Supplier</th>
+              <th>PIC / Supplier</th>
               <th>Status Approval</th>
               <th>Aksi</th>
             </tr>
@@ -52,17 +50,18 @@
   <script>
     const allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
 
-    // 1. Render Stok
+    // ================= 1. RENDER STOK =================
     const stockContainer = document.getElementById('stockContainer');
     const stockData = {}; 
     
     allRequests.forEach(r => {
-      if (r.type === 'IN') {
+      if (r.type === 'IN' && r.item) {
         stockData[r.category] = (stockData[r.category] || 0) + Number(r.item.qty);
-      } else if (r.type === 'OUT' && r.status === 'approved') {
+      } else if (r.type === 'OUT' && r.status === 'approved' && r.items) {
         r.items.forEach(it => {
-          // Asumsi part OUT punya kategori (perlu disesuaikan jika tidak)
-          stockData['Final Ball'] = (stockData['Final Ball'] || 0) - Number(it.qty_out);
+          if(it.category) {
+            stockData[it.category] = (stockData[it.category] || 0) - Number(it.qty_out);
+          }
         });
       }
     });
@@ -80,33 +79,57 @@
       }
     }
 
-    // 2. Render Riwayat
+    // ================= 2. RENDER RIWAYAT =================
+    // KETAT: Hanya tampilkan data yang sudah terkirim (Pending/Approved) dan ada request_no valid
+    const validRequests = allRequests.filter(r => {
+      // Abaikan jika tidak punya request_no yang benar
+      if (!r.request_no) return false;
+      
+      // Abaikan data sampah lama yang tidak diawali format baru
+      const isFormatBaru = r.request_no.startsWith('OUT-I-') || r.request_no.startsWith('IN-I-');
+      if (!isFormatBaru) return false;
+
+      // JIKA TIPE OUT: Hanya tampilkan jika statusnya pending atau approved (BUKAN DRAFT)
+      if (r.type === 'OUT') {
+        return r.status === 'pending' || r.status === 'approved';
+      }
+      
+      // Jika IN, tampilkan semua
+      return true;
+    });
+
     const historyBody = document.getElementById('historyBody');
-    allRequests.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
     
-    if (allRequests.length === 0) {
+    if (validRequests.length === 0) {
       historyBody.innerHTML = '<tr><td colspan="6" style="text-align:center">Belum ada riwayat</td></tr>';
     } else {
-      historyBody.innerHTML = allRequests.map(r => {
+      validRequests.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+      
+      historyBody.innerHTML = validRequests.map(r => {
         let statusBadge = '-';
+        
         if (r.type === 'OUT') {
-          if (r.status === 'pending') statusBadge = '<span class="badge" style="background:#fef3c7;color:#92400e;">Pending Approval</span>';
+          if (r.status === 'pending') statusBadge = '<span class="badge" style="background:#fef3c7;color:#92400e;">Pending</span>';
           else if (r.status === 'approved') statusBadge = '<span class="badge" style="background:#d1fae5;color:#065f46;">Approved</span>';
-          else if (r.status === 'rejected') statusBadge = '<span class="badge" style="background:#fee2e2;color:#991b1b;">Rejected</span>';
-          else statusBadge = '<span class="badge" style="background:#e2e8f0;color:#475569;">Draft</span>';
+        } else if (r.type === 'IN') {
+          statusBadge = '<span class="badge" style="background:#dbeafe;color:#1e40af;">Received</span>';
         }
+
+        let displayName = '-';
+        if (r.type === 'OUT') displayName = r.supplier_name || '-';
+        else if (r.type === 'IN') displayName = r.item && r.item.part_name ? r.item.part_name : '-';
 
         return `
           <tr>
-            <td>${r.request_no}</td>
+            <td><strong>${r.request_no}</strong></td>
             <td>${r.type}</td>
             <td>${r.tanggal}</td>
-            <td>${r.type === 'IN' ? r.purpose : r.supplier_name}</td>
+            <td>${displayName}</td>
             <td>${statusBadge}</td>
             <td>
               ${r.type === 'OUT' && r.status === 'pending' 
                 ? `<button class="btn btn-success btn-small" onclick="approve('${r.id}')">Approve</button>` 
-                : (r.type === 'OUT' ? `<a href="/preview.html?id=${r.id}" class="btn btn-primary btn-small">Preview TR</a>` : '')
+                : (r.type === 'OUT' ? `<a href="/preview.html?id=${r.id}" class="btn btn-primary btn-small">Preview TR</a>` : '-')
               }
             </td>
           </tr>
@@ -115,6 +138,8 @@
     }
 
     function approve(id) {
+      if(!confirm('Approve dokumen ini?')) return;
+      
       const reqs = JSON.parse(localStorage.getItem('requests') || '[]');
       const doc = reqs.find(r => r.id === id);
       if (doc) {
