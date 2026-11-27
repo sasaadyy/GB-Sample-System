@@ -266,7 +266,7 @@
         renderPacking();
       }
     }
-
+    // ================= GENERATE REQUEST NUMBER =================
     function generateRequestNo() {
       const dateVal = document.getElementById('outDate').value;
       const suppVal = document.getElementById('suppId').value;
@@ -274,11 +274,14 @@
       if (!dateVal || !suppVal) return alert('Tanggal dan Supplier wajib diisi!');
       if (currentDoc.request_no !== '') return alert('Request Number sudah di-generate!');
 
+      // AMBIL DATA DARI DATABASE (LOCALSTORAGE)
       let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
       
+      // CARI NOMOR URUT TERAKHIR HANYA UNTUK TANGGAL INI (YANG SUDAH TERSIMPAN)
       let maxSeq = 0;
       allRequests.forEach(r => {
-        if (r.type === 'OUT' && r.request_no && r.tanggal === dateVal && r.request_no.startsWith('OUT-I-')) {
+        // Pastikan itu tipe OUT, formatnya benar, dan tanggalnya sama
+        if (r.type === 'OUT' && r.tanggal === dateVal && r.request_no && r.request_no.startsWith('OUT-I-')) {
           const parts = r.request_no.split('-');
           if (parts.length === 4) {
             const seq = parseInt(parts[3], 10);
@@ -287,22 +290,22 @@
         }
       });
 
+      // Buat nomor baru
       const year = new Date(dateVal).getFullYear().toString().slice(-2);
       const nextSeq = String(maxSeq + 1).padStart(3, '0');
       const newReqNo = `OUT-I-${year}-${nextSeq}`;
 
+      // Update state & tampilan
       currentDoc.request_no = newReqNo;
       currentDoc.supplier_name = document.getElementById('suppName').value;
       currentDoc.surindo_pic = document.getElementById('outPic').value;
       currentDoc.tanggal = dateVal;
       currentDoc.created_at = new Date().toISOString();
 
-      saveToLocal();
-
       document.getElementById('reqNo').textContent = newReqNo;
       document.getElementById('msgGenerate').style.display = 'block';
       document.getElementById('btnGenerate').disabled = true;
-      document.getElementById('btnGenerate').textContent = '✅ Dokumen Tersimpan';
+      document.getElementById('btnGenerate').textContent = '✅ Siap Disimpan';
       document.getElementById('btnGenerate').style.background = '#64748b';
     }
 
