@@ -32,51 +32,61 @@
             <tr>
               <th>Request No</th>
               <th>Tanggal</th>
+              <th>PIC</th>
               <th>Supplier</th>
-              <th>Total Item</th>
               <th>Status</th>
               <th>Aksi</th>
             </tr>
           </thead>
-          <tbody id="tableOUTBody">
-            <!-- Diisi JS -->
-          </tbody>
+          <tbody id="tableOUTBody"></tbody>
         </table>
       </div>
     </div>
   </div>
 
   <script>
+    // 1. Ambil semua data
     let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+    
+    // 2. Filter HANYA yang tipenya 'OUT'
     let dataOUT = allRequests.filter(r => r.type === 'OUT');
 
     const tbody = document.getElementById('tableOUTBody');
 
     function renderTable() {
+      // Jika kosong
       if (dataOUT.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center">Belum ada data OUT. Silakan tambah.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px;">Belum ada data OUT.</td></tr>';
         return;
       }
 
-      dataOUT.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+      // Urutkan dari tanggal terbaru, lalu berdasarkan ID (waktu dibuat)
+      dataOUT.sort((a, b) => {
+        const dateA = new Date(a.tanggal + 'T' + new Date(a.created_at || Date.now()).toTimeString().split(' ')[0]);
+        const dateB = new Date(b.tanggal + 'T' + new Date(b.created_at || Date.now()).toTimeString().split(' ')[0]);
+        return dateB - dateA;
+      });
 
+      // Render baris
       tbody.innerHTML = dataOUT.map(r => {
         let badge = '';
-        if (r.status === 'pending') badge = '<span class="badge" style="background:#fef3c7;color:#92400e;">Pending</span>';
-        else if (r.status === 'approved') badge = '<span class="badge" style="background:#d1fae5;color:#065f46;">Approved</span>';
-        else badge = '<span class="badge" style="background:#e2e8f0;color:#475569;">Draft</span>';
+        if (r.status === 'pending') {
+          badge = '<span class="badge" style="background:#fef3c7;color:#92400e;">Pending</span>';
+        } else if (r.status === 'approved') {
+          badge = '<span class="badge" style="background:#d1fae5;color:#065f46;">Approved</span>';
+        } else {
+          badge = '<span class="badge" style="background:#e2e8f0;color:#475569;">Draft</span>';
+        }
 
         return `
           <tr>
-            <td>${r.request_no}</td>
-            <td>${r.tanggal}</td>
+            <td><strong>${r.request_no || '-'}</strong></td>
+            <td>${r.tanggal || '-'}</td>
+            <td>${r.surindo_pic || '-'}</td>
             <td>${r.supplier_name || '-'}</td>
-            <td>${r.items ? r.items.length : 0} Barang</td>
             <td>${badge}</td>
             <td>
-              ${r.status === 'pending' 
-                ? `<button class="btn btn-success btn-small" onclick="approve('${r.id}')">Approve</button>` 
-                : (r.status === 'approved' ? `<a href="/preview.html?id=${r.id}" class="btn btn-primary btn-small">Preview TR</a>` : '')}
+              <a href="/preview.html?id=${r.id}" class="btn btn-primary btn-small">Preview TR</a>
               <button class="btn btn-danger btn-small" onclick="hapusOUT('${r.id}')">Hapus</button>
             </td>
           </tr>
@@ -84,26 +94,20 @@
       }).join('');
     }
 
-    function approve(id) {
-      if (!confirm('Approve dokumen ini?')) return;
-      const reqs = JSON.parse(localStorage.getItem('requests') || '[]');
-      const doc = reqs.find(r => r.id === id);
-      if (doc) {
-        doc.status = 'approved';
-        localStorage.setItem('requests', JSON.stringify(reqs));
-        dataOUT = reqs.filter(r => r.type === 'OUT');
-        renderTable();
-      }
-    }
-
+    // Fungsi Hapus
     function hapusOUT(id) {
       if (!confirm('Yakin ingin menghapus data OUT ini?')) return;
+      
+      // Hapus dari array utama
       allRequests = allRequests.filter(r => r.id !== id);
       localStorage.setItem('requests', JSON.stringify(allRequests));
+      
+      // Update array dataOUT dan render ulang
       dataOUT = allRequests.filter(r => r.type === 'OUT');
       renderTable();
     }
 
+    // Render awal saat halaman dimuat
     renderTable();
   </script>
 </body>
