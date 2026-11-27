@@ -2,144 +2,385 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <title>Dashboard</title>
+  <title>Form Input OUT</title>
   <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    input:disabled, textarea:disabled { background-color: #e2e8f0 !important; color: #64748b !important; cursor: not-allowed !important; }
+  </style>
 </head>
 <body>
-  <!-- SIDEBAR -->
   <div class="sidebar">
-    <h2>Factory Golf Ball 1</h2>
-    <a href="/dashboard.html" class="active">📊 Dashboard</a>
+    <h2>Factory 1</h2>
+    <a href="/dashboard.html">📊 Dashboard</a>
     <a href="/input-in.html">📥 Input IN</a>
-    <a href="/input-out.html">📤 Input OUT</a>
+    <a href="/input-out.html" class="active">📤 Input OUT</a>
     <a href="/report.html">📑 Report</a>
+    <a href="/index.html" style="margin-top: auto;">🚪 Logout</a>
   </div>
 
-  <!-- MAIN CONTENT -->
   <div class="main-content">
     <div class="topbar">
-      <h3 style="margin:0;">Dashboard Overview</h3>
-      <div>Role: <strong>Admin</strong></div>
+      <h3>Input Movement GB Sample EXPORT (OUT)</h3>
+      <a href="/input-out.html" class="btn btn-secondary btn-small">← Kembali ke Tabel</a>
     </div>
-
+    
     <div class="container">
-      <!-- TOTAL STOK -->
-      <h3>Total Stok Barang (Berdasarkan Kategori)</h3>
-      <div class="grid-3" id="stockContainer">
-        <!-- Diisi JS -->
+      <div class="card" style="padding: 15px 24px; display:flex; gap: 30px; background:#e0e7ff;">
+        <div><strong>Request No:</strong> <span id="reqNo">(Belum di-generate)</span></div>
       </div>
 
-      <!-- RIWAYAT DOKUMEN -->
-      <h3 style="margin-top: 30px;">Riwayat Dokumen</h3>
-      <div class="card">
+      <div class="tabnav">
+        <button class="active" onclick="switchTab('dokumen', this)">1. Dokumen</button>
+        <button onclick="switchTab('barang', this)">2. Barang</button>
+        <button onclick="switchTab('packing', this)">3. Packing List</button>
+      </div>
+
+      <!-- TAB 1: DOKUMEN -->
+      <div class="card tab-content active" id="tab-dokumen">
+        <h3>Data Dokumen</h3>
+        <div class="grid-2">
+          <div class="form-row">
+            <label>PIC</label>
+            <select id="outPic" onchange="checkExistingDoc()">
+              <option>Darijok</option><option>Mumuh</option><option>Angga</option>
+              <option>Vera</option><option>Rian</option><option>Ayadi</option><option>Huda</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Tanggal</label>
+            <input type="date" id="outDate" onchange="checkExistingDoc()" />
+          </div>
+          <div class="form-row">
+            <label>Id Supplier</label>
+            <select id="suppId" onchange="autoFillSupplier()"><option value="">-- Pilih Supplier --</option></select>
+          </div>
+          <div class="form-row">
+            <label>Desc Supplier</label>
+            <input type="text" id="suppName" disabled />
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Address</label>
+          <textarea id="suppAddress" rows="3" disabled></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="generateRequestNo()" id="btnGenerate">💾 Generate Request No</button>
+        <p id="msgGenerate" style="color: #059669; font-size: 13px; display: none; margin-top:10px;">✅ Request Number berhasil di-generate!</p>
+      </div>
+
+      <!-- TAB 2: BARANG -->
+      <div class="card tab-content" id="tab-barang">
+        <h3>Data Barang</h3>
+        <div class="form-row">
+          <label>Kategori Barang</label>
+          <select id="outCategory">
+            <option value="Final Ball">Final Ball</option>
+            <option value="Finish Ball">Finish Ball</option>
+            <option value="Core Ball">Core Ball</option>
+            <option value="Packaging">Packaging</option>
+            <option value="Mold">Mold</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Part Name</label>
+          <select id="outPartName" onchange="autoFillPart()"><option value="">-- Pilih Part Name --</option></select>
+        </div>
+        <div class="grid-2">
+          <div class="form-row"><label>Part No</label><input type="text" id="outPartNo" disabled /></div>
+          <div class="form-row"><label>Unit</label><input type="text" id="outUnit" disabled /></div>
+          <div class="form-row"><label>Saldo Akhir (Stok)</label><input type="number" id="outSaldo" disabled style="background:#e2e8f0; font-weight:bold;" /></div>
+          <div class="form-row"><label>Qty OUT</label><input type="number" id="outQty" value="0" /></div>
+        </div>
+        <button class="btn btn-primary" onclick="tambahBarang()">Tambah Barang</button>
         <table>
-          <thead>
-            <tr>
-              <th>Req No</th>
-              <th>Tipe</th>
-              <th>Tanggal</th>
-              <th>PIC / Supplier</th>
-              <th>Status Approval</th>
-              <th>Aksi</th>
-            </tr>
-          </thead>
-          <tbody id="historyBody"></tbody>
+          <thead><tr><th>Part Name</th><th>Part No</th><th>Qty OUT</th><th>Aksi</th></tr></thead>
+          <tbody id="listBarang"></tbody>
         </table>
+      </div>
+
+      <!-- TAB 3: PACKING -->
+      <div class="card tab-content" id="tab-packing">
+        <h3>Packing List</h3>
+        <div id="packingContainer">
+          <div class="packing-row grid-3" style="margin-bottom:10px;">
+            <div class="form-row"><label>Jumlah Box</label><input type="number" class="packBox" /></div>
+            <div class="form-row"><label>Dimensi</label><input type="text" class="packDim" /></div>
+            <div class="form-row"><label>Gross (Kg)</label><input type="number" class="packGross" /></div>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="tambahBox()">+ Tambah Box Lain</button>
+        
+        <hr style="margin: 20px 0;">
+        <button class="btn btn-success" style="width: 100%; padding: 15px; font-size: 16px;" onclick="finalSubmit()">Simpan Semua & Kirim ke Atasan</button>
       </div>
     </div>
   </div>
 
+  <script src="/js/masterData.js"></script>
   <script>
-    const allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+    const urlParams = new URLSearchParams(window.location.search);
+    const isNew = urlParams.get('new') === 'true';
 
-    // ================= 1. RENDER STOK =================
-    const stockContainer = document.getElementById('stockContainer');
-    const stockData = {}; 
-    
-    allRequests.forEach(r => {
-      if (r.type === 'IN' && r.item) {
-        stockData[r.category] = (stockData[r.category] || 0) + Number(r.item.qty);
-      } else if (r.type === 'OUT' && r.status === 'approved' && r.items) {
-        r.items.forEach(it => {
-          if(it.category) {
-            stockData[it.category] = (stockData[it.category] || 0) - Number(it.qty_out);
+    let currentDoc = {
+      id: 'req-' + Date.now(),
+      request_no: '',
+      type: 'OUT',
+      tanggal: new Date().toISOString().slice(0,10),
+      surindo_pic: 'Darijok',
+      status: 'pending',
+      items: [],
+      packing: []
+    };
+
+    document.getElementById('outDate').value = currentDoc.tanggal;
+
+    const suppSel = document.getElementById('suppId');
+    MASTER_SUPPLIERS.forEach(s => suppSel.innerHTML += `<option value="${s.id}">${s.id}</option>`);
+
+    const partSel = document.getElementById('outPartName');
+    MASTER_PARTS.forEach(p => partSel.innerHTML += `<option value="${p.part_no}">${p.part_name}</option>`);
+
+    function switchTab(tab, btn) {
+      document.querySelectorAll('.tabnav button').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + tab).classList.add('active');
+    }
+
+    function autoFillSupplier() {
+      const id = document.getElementById('suppId').value;
+      const supp = MASTER_SUPPLIERS.find(s => s.id === id);
+      if (supp) {
+        document.getElementById('suppName').value = supp.name;
+        document.getElementById('suppAddress').value = supp.address;
+      }
+    }
+
+    function autoFillPart() {
+      const pNo = document.getElementById('outPartName').value;
+      const part = MASTER_PARTS.find(p => p.part_no === pNo);
+      
+      if (part) {
+        document.getElementById('outPartNo').value = part.part_no;
+        document.getElementById('outUnit').value = part.unit;
+
+        let allReqs = JSON.parse(localStorage.getItem('requests') || '[]');
+        let saldo = 0;
+        allReqs.forEach(r => {
+          if (r.type === 'IN' && r.item.part_no === part.part_no) saldo += Number(r.item.qty);
+          if (r.type === 'OUT' && r.status === 'approved' && r.items) {
+            r.items.forEach(it => { if (it.part_no === part.part_no) saldo -= Number(it.qty_out); });
           }
         });
+        document.getElementById('outSaldo').value = saldo;
       }
-    });
+    }
 
-    if (Object.keys(stockData).length === 0) {
-      stockContainer.innerHTML = '<div class="card" style="grid-column: 1/-1; text-align:center;">Belum ada data stok</div>';
-    } else {
-      for (const [cat, total] of Object.entries(stockData)) {
-        stockContainer.innerHTML += `
-          <div class="card">
-            <div style="font-size: 13px; color: #64748b;">${cat}</div>
-            <div style="font-size: 24px; font-weight: bold; color: #1e3a8a;">${total}</div>
+    function checkExistingDoc() {
+      const pic = document.getElementById('outPic').value;
+      const tgl = document.getElementById('outDate').value;
+      if (!pic || !tgl) return;
+
+      if (isNew) {
+        isNew = false;
+        document.getElementById('reqNo').textContent = '(Belum di-generate)';
+        document.getElementById('btnGenerate').disabled = false;
+        document.getElementById('btnGenerate').textContent = '💾 Generate Request No';
+        document.getElementById('btnGenerate').style.background = '#1e3a8a';
+        document.getElementById('msgGenerate').style.display = 'none';
+        document.getElementById('suppId').value = '';
+        document.getElementById('suppName').value = '';
+        document.getElementById('suppAddress').value = '';
+        renderBarang();
+        renderPacking();
+        return;
+      }
+
+      let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+      const existing = allRequests.find(r => 
+        r.type === 'OUT' && 
+        r.surindo_pic === pic && 
+        r.tanggal === tgl &&
+        r.request_no && r.request_no.startsWith('OUT-I-')
+      );
+
+      if (existing) {
+        currentDoc = existing;
+        document.getElementById('reqNo').textContent = currentDoc.request_no;
+        document.getElementById('btnGenerate').disabled = true;
+        document.getElementById('btnGenerate').textContent = '✅ Dokumen Sudah Ada';
+        document.getElementById('btnGenerate').style.background = '#64748b';
+        
+        if(currentDoc.supplier_name) {
+          const supp = MASTER_SUPPLIERS.find(s => s.name === currentDoc.supplier_name);
+          if (supp) {
+            document.getElementById('suppId').value = supp.id;
+            autoFillSupplier();
+          }
+        }
+        renderBarang();
+        renderPacking();
+      } else {
+        currentDoc = {
+          id: 'req-' + Date.now(),
+          request_no: '',
+          type: 'OUT',
+          tanggal: tgl,
+          surindo_pic: pic,
+          status: 'pending',
+          items: [],
+          packing: []
+        };
+        document.getElementById('reqNo').textContent = '(Belum di-generate)';
+        document.getElementById('btnGenerate').disabled = false;
+        document.getElementById('btnGenerate').textContent = '💾 Generate Request No';
+        document.getElementById('btnGenerate').style.background = '#1e3a8a';
+        document.getElementById('msgGenerate').style.display = 'none';
+        document.getElementById('suppId').value = '';
+        document.getElementById('suppName').value = '';
+        document.getElementById('suppAddress').value = '';
+        renderBarang();
+        renderPacking();
+      }
+    }
+
+    function generateRequestNo() {
+      const dateVal = document.getElementById('outDate').value;
+      const suppVal = document.getElementById('suppId').value;
+
+      if (!dateVal || !suppVal) return alert('Tanggal dan Supplier wajib diisi!');
+      if (currentDoc.request_no !== '') return alert('Request Number sudah di-generate!');
+
+      let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+      
+      let maxSeq = 0;
+      allRequests.forEach(r => {
+        if (r.type === 'OUT' && r.request_no && r.tanggal === dateVal && r.request_no.startsWith('OUT-I-')) {
+          const parts = r.request_no.split('-');
+          if (parts.length === 4) {
+            const seq = parseInt(parts[3], 10);
+            if (seq > maxSeq) maxSeq = seq;
+          }
+        }
+      });
+
+      const year = new Date(dateVal).getFullYear().toString().slice(-2);
+      const nextSeq = String(maxSeq + 1).padStart(3, '0');
+      const newReqNo = `OUT-I-${year}-${nextSeq}`;
+
+      currentDoc.request_no = newReqNo;
+      currentDoc.supplier_name = document.getElementById('suppName').value;
+      currentDoc.surindo_pic = document.getElementById('outPic').value;
+      currentDoc.tanggal = dateVal;
+      currentDoc.created_at = new Date().toISOString();
+
+      document.getElementById('reqNo').textContent = newReqNo;
+      document.getElementById('msgGenerate').style.display = 'block';
+      document.getElementById('btnGenerate').disabled = true;
+      document.getElementById('btnGenerate').textContent = '✅ Siap Disimpan';
+      document.getElementById('btnGenerate').style.background = '#64748b';
+    }
+
+    function tambahBarang() {
+      if (currentDoc.request_no === '') return alert('Klik "Generate Request No" di Tab 1 terlebih dahulu!');
+      const pName = document.getElementById('outPartName').options[document.getElementById('outPartName').selectedIndex].text;
+      const pNo = document.getElementById('outPartNo').value;
+      const qty = Number(document.getElementById('outQty').value);
+      const saldo = Number(document.getElementById('outSaldo').value);
+      
+      if (!pNo || qty <= 0) return alert('Isi barang dengan benar');
+      if (qty > saldo) return alert('Qty OUT melebihi Saldo Akhir!');
+
+      currentDoc.items.push({ category: document.getElementById('outCategory').value, part_name: pName, part_no: pNo, qty_out: qty });
+      
+      renderBarang();
+      
+      document.getElementById('outQty').value = '0';
+      document.getElementById('outSaldo').value = '';
+      document.getElementById('outPartName').value = '';
+      document.getElementById('outPartNo').value = '';
+      document.getElementById('outUnit').value = '';
+    }
+
+    function renderBarang() {
+      const tbody = document.getElementById('listBarang');
+      if (!currentDoc.items || currentDoc.items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">Belum ada barang</td></tr>'; return;
+      }
+      tbody.innerHTML = currentDoc.items.map((it, i) => `
+        <tr><td>${it.part_name}</td><td>${it.part_no}</td><td>${it.qty_out}</td>
+        <td><button class="btn btn-danger btn-small" onclick="hapusBarang(${i})">Hapus</button></td></tr>
+      `).join('');
+    }
+
+    function hapusBarang(idx) {
+      currentDoc.items.splice(idx, 1);
+      renderBarang();
+    }
+
+    function tambahBox() {
+      const container = document.getElementById('packingContainer');
+      const div = document.createElement('div');
+      div.className = 'packing-row grid-3';
+      div.style.marginBottom = '10px';
+      div.innerHTML = `
+        <div class="form-row"><label>Jumlah Box</label><input type="number" class="packBox" /></div>
+        <div class="form-row"><label>Dimensi</label><input type="text" class="packDim" /></div>
+        <div class="form-row"><label>Gross (Kg)</label><input type="number" class="packGross" /></div>
+      `;
+      container.appendChild(div);
+    }
+
+    function renderPacking() {
+      const container = document.getElementById('packingContainer');
+      container.innerHTML = '';
+      if (!currentDoc.packing || currentDoc.packing.length === 0) {
+        container.innerHTML = `
+          <div class="packing-row grid-3" style="margin-bottom:10px;">
+            <div class="form-row"><label>Jumlah Box</label><input type="number" class="packBox" /></div>
+            <div class="form-row"><label>Dimensi</label><input type="text" class="packDim" /></div>
+            <div class="form-row"><label>Gross (Kg)</label><input type="number" class="packGross" /></div>
           </div>
         `;
+        return;
       }
-    }
-
-    // ================= 2. RENDER RIWAYAT =================
-    // Filter ketat: Hanya tampilkan data yang punya format request_no baru (mengabaikan data sampah lama)
-    const validRequests = allRequests.filter(r => {
-      if (r.type === 'IN') return r.request_no && r.request_no.startsWith('IN-I-');
-      if (r.type === 'OUT') return r.request_no && r.request_no.startsWith('OUT-I-');
-      return false;
-    });
-
-    const historyBody = document.getElementById('historyBody');
-    
-    if (validRequests.length === 0) {
-      historyBody.innerHTML = '<tr><td colspan="6" style="text-align:center">Belum ada riwayat</td></tr>';
-    } else {
-      validRequests.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
-      
-      historyBody.innerHTML = validRequests.map(r => {
-        let statusBadge = '-';
-        
-        if (r.type === 'OUT') {
-          if (r.status === 'pending') statusBadge = '<span class="badge" style="background:#fef3c7;color:#92400e;">Pending</span>';
-          else if (r.status === 'approved') statusBadge = '<span class="badge" style="background:#d1fae5;color:#065f46;">Approved</span>';
-        } else if (r.type === 'IN') {
-          statusBadge = '<span class="badge" style="background:#dbeafe;color:#1e40af;">Received</span>';
-        }
-
-        let displayName = '-';
-        if (r.type === 'OUT') displayName = r.supplier_name || '-';
-        else if (r.type === 'IN') displayName = r.item && r.item.part_name ? r.item.part_name : '-';
-
-        return `
-          <tr>
-            <!-- Menampilkan persis request_no dari database -->
-            <td><strong>${r.request_no}</strong></td> 
-            <td>${r.type}</td>
-            <td>${r.tanggal}</td>
-            <td>${displayName}</td>
-            <td>${statusBadge}</td>
-            <td>
-              ${r.type === 'OUT' && r.status === 'pending' 
-                ? `<button class="btn btn-success btn-small" onclick="approve('${r.id}')">Approve</button>` 
-                : (r.type === 'OUT' ? `<a href="/preview.html?id=${r.id}" class="btn btn-primary btn-small">Preview TR</a>` : '-')
-              }
-            </td>
-          </tr>
+      currentDoc.packing.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'packing-row grid-3';
+        div.style.marginBottom = '10px';
+        div.innerHTML = `
+          <div class="form-row"><label>Jumlah Box</label><input type="number" class="packBox" value="${p.jumlah_box || ''}" /></div>
+          <div class="form-row"><label>Dimensi</label><input type="text" class="packDim" value="${p.dimensi || ''}" /></div>
+          <div class="form-row"><label>Gross (Kg)</label><input type="number" class="packGross" value="${p.gross || ''}" /></div>
         `;
-      }).join('');
+        container.appendChild(div);
+      });
     }
 
-    function approve(id) {
-      if(!confirm('Approve dokumen ini?')) return;
-      
-      const reqs = JSON.parse(localStorage.getItem('requests') || '[]');
-      const doc = reqs.find(r => r.id === id);
-      if (doc) {
-        doc.status = 'approved';
-        localStorage.setItem('requests', JSON.stringify(reqs));
-        location.reload();
-      }
+    // PERBAIKAN: Ganti nama fungsi agar tidak bentrok dengan id button
+    function kirimKeAtasan() {
+      if (currentDoc.request_no === '') return alert('Klik "Generate Request No" di Tab 1 terlebih dahulu!');
+
+      const rows = document.querySelectorAll('.packing-row');
+      currentDoc.packing = Array.from(rows).map(r => ({
+        jumlah_box: r.querySelector('.packBox').value,
+        dimensi: r.querySelector('.packDim').value,
+        gross: r.querySelector('.packGross').value
+      })).filter(p => p.jumlah_box !== '');
+
+      if (currentDoc.items.length === 0) return alert('Barang belum diisi!');
+      if (currentDoc.packing.length === 0) return alert('Packing List belum diisi!');
+
+      let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+      const idx = allRequests.findIndex(r => r.id === currentDoc.id);
+      if (idx !== -1) allRequests[idx] = currentDoc;
+      else allRequests.push(currentDoc);
+      localStorage.setItem('requests', JSON.stringify(allRequests));
+
+      alert('Berhasil dikirim ke atasan!');
+      window.location.href = '/input-out.html'; 
     }
+
+    checkExistingDoc();
   </script>
 </body>
 </html>
