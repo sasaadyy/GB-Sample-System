@@ -26,13 +26,13 @@
   <div class="main-content">
     <div class="topbar">
       <h3>Form Tambah Data IN</h3>
-      <a href="/input-in.html" class="btn btn-secondary btn-small">← Kembali ke Tabel</a>
+      <a href="/input-in.html" class="btn btn-secondary btn-small" onclick="return konfirmKeluar()">← Kembali ke Tabel</a>
     </div>
 
     <div class="container">
-      <!-- BARU: tampilan Doc Number -->
-      <div class="card" style="padding: 15px 24px; display:flex; gap: 30px; background:#e0e7ff;">
+      <div class="card" style="padding: 15px 24px; display:flex; gap: 30px; align-items:center; background:#e0e7ff;">
         <div><strong>Doc Number:</strong> <span id="docNo">(Belum di-generate)</span></div>
+        <button class="btn btn-danger btn-small" id="btnBatal" style="display:none; margin-left:auto;" onclick="batalDokumen()">✖ Batal & Mulai Ulang</button>
       </div>
 
       <div class="card">
@@ -63,9 +63,8 @@
           </select>
         </div>
 
-        <!-- BARU: tombol generate -->
         <button class="btn btn-primary" onclick="generateDocNo()" id="btnGenerate">💾 Generate Doc Number</button>
-        <p id="msgGenerate" style="color: #059669; font-size: 13px; display: none; margin-top:10px;">✅ Doc Number berhasil di-generate! (Tanggal dikunci)</p>
+        <p id="msgGenerate" style="color: #059669; font-size: 13px; display: none; margin-top:10px;">✅ Doc Number berhasil di-generate! (PIC & tanggal dikunci)</p>
 
         <hr style="margin: 20px 0; border: 1px dashed #cbd5e1;">
 
@@ -122,19 +121,63 @@
 
   <script src="/js/masterData.js"></script>
   <script>
+    // State sementara: TIDAK masuk riwayat sampai klik "Simpan Semua Data IN"
     let daftarBarang = [];
-    let docNo = '';   // diisi setelah klik Generate Doc Number
+    let docNo = '';
 
-    // 1. Isi Dropdown Part Name
+    // Matikan isian otomatis/restore dari browser
+    document.querySelectorAll('input, select, textarea').forEach(el => el.setAttribute('autocomplete', 'off'));
+
+    // Isi Dropdown Part Name
     const partSel = document.getElementById('inPartName');
     MASTER_PARTS.forEach(p => {
       partSel.innerHTML += `<option value="${p.part_no}">${p.part_name}</option>`;
     });
 
-    // 2. Tanggal default hari ini
-    document.getElementById('inDate').value = new Date().toISOString().slice(0,10);
+    // Tanggal lokal (bukan UTC) format YYYY-MM-DD
+    function todayStr() {
+      const d = new Date();
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
 
-    // 3. Auto-fill Part Number & Unit
+    // ================= MULAI DARI AWAL (FORM BERSIH) =================
+    function mulaiBaru() {
+      daftarBarang = [];
+      docNo = '';
+
+      document.getElementById('inPic').selectedIndex = 0;
+      document.getElementById('inPic').disabled = false;
+      document.getElementById('inDate').value = todayStr();
+      document.getElementById('inDate').disabled = false;
+      document.getElementById('inCat').selectedIndex = 0;
+
+      document.getElementById('inPartName').value = '';
+      document.getElementById('inPartNo').value = '';
+      document.getElementById('inUnit').value = '';
+      document.getElementById('inQty').value = '';
+
+      document.getElementById('docNo').textContent = '(Belum di-generate)';
+      document.getElementById('msgGenerate').style.display = 'none';
+      document.getElementById('btnBatal').style.display = 'none';
+      const btn = document.getElementById('btnGenerate');
+      btn.disabled = false;
+      btn.textContent = '💾 Generate Doc Number';
+      btn.style.background = '';
+
+      renderTabelSementara();
+    }
+
+    function batalDokumen() {
+      if (!confirm('Batalkan dokumen ini? Semua isian dihapus dan tidak disimpan ke riwayat.')) return;
+      mulaiBaru();
+    }
+
+    function konfirmKeluar() {
+      if (docNo === '') return true;
+      return confirm('Dokumen belum disimpan. Keluar dan buang semua isian?');
+    }
+
+    // Auto-fill Part Number & Unit
     function autoFillIN() {
       const selectedPartNo = document.getElementById('inPartName').value;
       const partData = MASTER_PARTS.find(p => p.part_no === selectedPartNo);
@@ -143,21 +186,20 @@
     }
 
     // ================= DOC NUMBER =================
-    // Hitung nomor berikutnya berdasarkan data yang sudah tersimpan di tanggal yang sama
+    // Nomor berikutnya = nomor tertinggi di tahun itu + 1 (semua PIC).
+    // Dihitung hanya dari dokumen yang TERSIMPAN, jadi dokumen yang dibatalkan tidak memakai nomor,
+    // dan kalau dokumen terakhir dihapus nomornya dipakai lagi.
     function nextDocNo(dateVal) {
+      const head = `IN-I-${dateVal.slice(2, 4)}-`;   // '2026-11-27' -> 'IN-I-26-'
       const allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
       let maxSeq = 0;
       allRequests.forEach(r => {
-        if (r.type === 'IN' && r.tanggal === dateVal && r.request_no && r.request_no.startsWith('IN-I-')) {
-          const parts = r.request_no.split('-');
-          if (parts.length === 4) {
-            const seq = parseInt(parts[3], 10);
-            if (seq > maxSeq) maxSeq = seq;
-          }
+        if (r.type === 'IN' && r.request_no && r.request_no.startsWith(head)) {
+          const seq = parseInt(r.request_no.slice(head.length), 10);
+          if (seq > maxSeq) maxSeq = seq;
         }
       });
-      const year = new Date(dateVal).getFullYear().toString().slice(-2);
-      return `IN-I-${year}-${String(maxSeq + 1).padStart(3, '0')}`;
+      return head + String(maxSeq + 1).padStart(3, '0');
     }
 
     function generateDocNo() {
@@ -169,13 +211,16 @@
 
       document.getElementById('docNo').textContent = docNo;
       document.getElementById('msgGenerate').style.display = 'block';
-      document.getElementById('inDate').disabled = true;   // kunci tanggal supaya nomor tidak berubah
+      document.getElementById('btnBatal').style.display = 'inline-block';
+      // Kunci PIC & tanggal supaya nomor tidak berubah (mau ganti: Batal & Mulai Ulang)
+      document.getElementById('inPic').disabled = true;
+      document.getElementById('inDate').disabled = true;
       document.getElementById('btnGenerate').disabled = true;
       document.getElementById('btnGenerate').textContent = '✅ Siap Disimpan';
       document.getElementById('btnGenerate').style.background = '#64748b';
     }
 
-    // 4. Tambah ke tabel sementara
+    // ================= TABEL BARANG SEMENTARA =================
     function tambahBarangKeTabel() {
       if (docNo === '') return alert('Klik "Generate Doc Number" terlebih dahulu!');
 
@@ -203,7 +248,6 @@
       document.getElementById('inQty').value = '';
     }
 
-    // 5. Render tabel sementara
     function renderTabelSementara() {
       const tbody = document.getElementById('listBarangBody');
 
@@ -228,20 +272,25 @@
       renderTabelSementara();
     }
 
-    // 6. Simpan semua
+    // ================= SIMPAN (SATU-SATUNYA YANG MENYIMPAN KE RIWAYAT) =================
     function simpanSemuaIN() {
       const dateVal = document.getElementById('inDate').value;
 
       if (docNo === '') return alert('Klik "Generate Doc Number" terlebih dahulu!');
       if (daftarBarang.length === 0) return alert('Minimal tambahkan 1 barang ke daftar!');
 
+      // Masih ada barang yang dipilih tapi belum ditambahkan ke daftar
+      if (document.getElementById('inPartName').value !== '' || Number(document.getElementById('inQty').value) > 0) {
+        return alert('Masih ada barang yang dipilih tapi belum ditambahkan. Klik "+ Tambah ke Daftar" dulu, atau kosongkan pilihannya.');
+      }
+
       let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
 
-      // Jaga-jaga: kalau nomor ini sudah terpakai (mis. ada yang simpan lebih dulu di tab lain), buat nomor baru
+      // Kalau nomor sudah dipakai sejak Generate (mis. PIC lain simpan lebih dulu), ambil nomor berikutnya
       if (allRequests.some(r => r.request_no === docNo)) {
         docNo = nextDocNo(dateVal);
         document.getElementById('docNo').textContent = docNo;
-        alert('Doc Number sudah terpakai, otomatis diganti ke ' + docNo);
+        alert('Doc Number sebelumnya sudah dipakai PIC lain, otomatis diganti ke ' + docNo);
       }
 
       const newDoc = {
@@ -260,6 +309,10 @@
       alert(`Data IN berhasil disimpan dengan No: ${docNo}`);
       window.location.href = '/input-in.html';
     }
+
+    // Selalu mulai bersih: saat dibuka, di-refresh, atau kembali lewat tombol Back
+    mulaiBaru();
+    window.addEventListener('pageshow', mulaiBaru);
   </script>
 </body>
 </html>
