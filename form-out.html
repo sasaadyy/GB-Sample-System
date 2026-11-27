@@ -22,10 +22,9 @@
     </div>
     
     <div class="container">
-      <!-- HEADER INFO -->
+      <!-- HEADER INFO (Tanggal dihapus, Request No kosong) -->
       <div class="card" style="padding: 15px 24px; display:flex; gap: 30px; background:#e0e7ff;">
-        <div><strong>Request No:</strong> <span id="reqNo">-</span></div>
-        <div><strong>Tanggal:</strong> <span id="reqTgl">-</span></div>
+        <div><strong>Request No:</strong> <span id="reqNo">(Belum di-generate)</span></div>
       </div>
 
       <div class="tabnav">
@@ -52,13 +51,15 @@
           </div>
           <div class="form-row">
             <label>Desc Supplier</label>
-            <input type="text" id="suppName" readonly />
+            <input type="text" id="suppName" readonly style="background:#f1f5f9;" />
           </div>
         </div>
         <div class="form-row">
           <label>Address</label>
-          <textarea id="suppAddress" rows="3" readonly></textarea>
+          <textarea id="suppAddress" rows="3" readonly style="background:#f1f5f9;"></textarea>
         </div>
+        <button class="btn btn-primary" onclick="generateRequestNo()" id="btnGenerate">💾 Simpan Dokumen & Generate Request No</button>
+        <p id="msgGenerate" style="color: #059669; font-size: 13px; display: none; margin-top:10px;">✅ Request Number berhasil di-generate!</p>
       </div>
 
       <!-- TAB 2: BARANG -->
@@ -79,9 +80,9 @@
           <select id="outPartName" onchange="autoFillPart()"><option value="">-- Pilih Part Name --</option></select>
         </div>
         <div class="grid-2">
-          <div class="form-row"><label>Part No</label><input type="text" id="outPartNo" readonly /></div>
-          <div class="form-row"><label>Unit</label><input type="text" id="outUnit" readonly /></div>
-          <div class="form-row"><label>Saldo Akhir (Stok)</label><input type="number" id="outSaldo" readonly style="background:#e2e8f0; font-weight:bold;" /></div>
+          <div class="form-row"><label>Part No</label><input type="text" id="outPartNo" disabled /></div>
+          <div class="form-row"><label>Unit</label><input type="text" id="outUnit" disabled /></div>
+          <div class="form-row"><label>Saldo Akhir (Stok)</label><input type="number" id="outSaldo" disabled style="background:#e2e8f0; font-weight:bold;" /></div>
           <div class="form-row"><label>Qty OUT</label><input type="number" id="outQty" value="0" /></div>
         </div>
         <button class="btn btn-primary" onclick="tambahBarang()">Tambah Barang</button>
@@ -115,7 +116,7 @@
     // State
     let currentDoc = {
       id: 'req-' + Date.now(),
-      request_no: 'OUT-26-' + String(Math.floor(Math.random() * 9000) + 1000),
+      request_no: '', // Dikosongkan dulu
       type: 'OUT',
       tanggal: new Date().toISOString().slice(0,10),
       status: 'draft',
@@ -123,8 +124,6 @@
       packing: []
     };
 
-    document.getElementById('reqNo').textContent = currentDoc.request_no;
-    document.getElementById('reqTgl').textContent = currentDoc.tanggal;
     document.getElementById('outDate').value = currentDoc.tanggal;
 
     // Load Dropdowns
@@ -147,10 +146,12 @@
       if (supp) {
         document.getElementById('suppName').value = supp.name;
         document.getElementById('suppAddress').value = supp.address;
+      } else {
+        document.getElementById('suppName').value = '';
+        document.getElementById('suppAddress').value = '';
       }
     }
 
-    // FUNGSI HITUNG SALDO DAN AUTO-FILL
     function autoFillPart() {
       const pNo = document.getElementById('outPartName').value;
       const part = MASTER_PARTS.find(p => p.part_no === pNo);
@@ -159,10 +160,9 @@
         document.getElementById('outPartNo').value = part.part_no;
         document.getElementById('outUnit').value = part.unit;
 
-        // Hitung Saldo Akhir dari LocalStorage
+        // Hitung Saldo
         let allReqs = JSON.parse(localStorage.getItem('requests') || '[]');
         let saldo = 0;
-        
         allReqs.forEach(r => {
           if (r.type === 'IN' && r.item.part_no === part.part_no) {
             saldo += Number(r.item.qty);
@@ -173,7 +173,6 @@
             });
           }
         });
-
         document.getElementById('outSaldo').value = saldo;
       } else {
         document.getElementById('outPartNo').value = '';
@@ -182,7 +181,57 @@
       }
     }
 
+    // ================= GENERATE REQUEST NUMBER =================
+    function generateRequestNo() {
+      const dateVal = document.getElementById('outDate').value;
+      const suppVal = document.getElementById('suppId').value;
+
+      if (!dateVal || !suppVal) {
+        return alert('Tanggal dan Supplier wajib diisi sebelum menyimpan dokumen!');
+      }
+
+      if (currentDoc.request_no !== '') {
+        return alert('Request Number sudah di-generate: ' + currentDoc.request_no);
+      }
+
+      // Ambil data request saat ini
+      let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+      
+      // Cari nomor urut terakhir
+      let maxSeq = 0;
+      allRequests.forEach(r => {
+        if (r.type === 'OUT' && r.request_no && r.request_no.startsWith('OUT-I-')) {
+          // Format: OUT-I-26-001
+          const parts = r.request_no.split('-');
+          if (parts.length === 4) {
+            const seq = parseInt(parts[3], 10);
+            if (seq > maxSeq) maxSeq = seq;
+          }
+        }
+      });
+
+      // Buat nomor baru
+      const year = new Date(dateVal).getFullYear().toString().slice(-2); // Ambil 2 digit tahun
+      const nextSeq = String(maxSeq + 1).padStart(3, '0');
+      const newReqNo = `OUT-I-${year}-${nextSeq}`;
+
+      // Update state & tampilan
+      currentDoc.request_no = newReqNo;
+      currentDoc.tanggal = dateVal;
+      currentDoc.supplier_name = document.getElementById('suppName').value;
+      currentDoc.surindo_pic = document.getElementById('outPic').value;
+
+      document.getElementById('reqNo').textContent = newReqNo;
+      document.getElementById('msgGenerate').style.display = 'block';
+      document.getElementById('btnGenerate').disabled = true;
+      document.getElementById('btnGenerate').textContent = '✅ Dokumen Tersimpan';
+      document.getElementById('btnGenerate').style.background = '#64748b';
+    }
+
+    // ================= FUNGSI LAINNYA =================
     function tambahBarang() {
+      if (currentDoc.request_no === '') return alert('Klik "Simpan Dokumen" di Tab 1 terlebih dahulu!');
+
       const pName = document.getElementById('outPartName').options[document.getElementById('outPartName').selectedIndex].text;
       const pNo = document.getElementById('outPartNo').value;
       const qty = Number(document.getElementById('outQty').value);
@@ -234,6 +283,8 @@
     }
 
     function finalSubmit() {
+      if (currentDoc.request_no === '') return alert('Simpan Dokumen di Tab 1 terlebih dahulu!');
+
       const rows = document.querySelectorAll('.packing-row');
       currentDoc.packing = Array.from(rows).map(r => ({
         jumlah_box: r.querySelector('.packBox').value,
@@ -244,16 +295,22 @@
       if (currentDoc.items.length === 0) return alert('Barang belum diisi!');
       if (currentDoc.packing.length === 0) return alert('Packing List belum diisi!');
 
-      currentDoc.supplier_name = document.getElementById('suppName').value;
-      currentDoc.surindo_pic = document.getElementById('outPic').value;
       currentDoc.status = 'pending';
 
       let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
-      allRequests.push(currentDoc);
+      
+      // Cek apakah data sudah ada di localStorage (jika user klik simpan dua kali)
+      const idx = allRequests.findIndex(r => r.id === currentDoc.id);
+      if (idx !== -1) {
+        allRequests[idx] = currentDoc;
+      } else {
+        allRequests.push(currentDoc);
+      }
+      
       localStorage.setItem('requests', JSON.stringify(allRequests));
 
       alert('Berhasil dikirim ke atasan!');
-      window.location.href = '/input-out.html'; // Kembali ke tabel
+      window.location.href = '/input-out.html'; 
     }
   </script>
 </body>
