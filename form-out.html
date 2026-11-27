@@ -154,9 +154,6 @@
       if (supp) {
         document.getElementById('suppName').value = supp.name;
         document.getElementById('suppAddress').value = supp.address;
-      } else {
-        document.getElementById('suppName').value = '';
-        document.getElementById('suppAddress').value = '';
       }
     }
 
@@ -181,20 +178,21 @@
     }
 
     // ================= CHECK EXISTING DOC =================
+    // Fungsi ketat: Hanya load jika dokumen benar-benar ada di lokal storage
     function checkExistingDoc() {
       const pic = document.getElementById('outPic').value;
       const tgl = document.getElementById('outDate').value;
       if (!pic || !tgl) return;
 
       let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+      
+      // Cari data spesifik
       const existing = allRequests.find(r => r.type === 'OUT' && r.surindo_pic === pic && r.tanggal === tgl);
 
       if (existing) {
-        // Jika dokumen sudah ada
         currentDoc = existing;
         document.getElementById('reqNo').textContent = currentDoc.request_no;
         
-        // Tombol jadi abu-abu
         document.getElementById('btnGenerate').disabled = true;
         document.getElementById('btnGenerate').textContent = '✅ Dokumen Sudah Ada (Tersimpan)';
         document.getElementById('btnGenerate').style.background = '#64748b';
@@ -211,7 +209,7 @@
         renderBarang();
         renderPacking();
       } else {
-        // Jika belum ada, reset form menjadi kosong
+        // JIKA TIDAK ADA: Paksa semua form kosong total
         currentDoc = {
           id: 'req-' + Date.now(),
           request_no: '',
@@ -222,24 +220,24 @@
           items: [],
           packing: []
         };
-        document.getElementById('reqNo').textContent = '(Belum di-generate)';
         
-        // KEMBALIKAN TOMBOL SEPERTI SEMULA
+        document.getElementById('reqNo').textContent = '(Belum di-generate)';
         document.getElementById('btnGenerate').disabled = false;
         document.getElementById('btnGenerate').textContent = '💾 Simpan Dokumen & Generate Request No';
         document.getElementById('btnGenerate').style.background = '#1e3a8a';
         document.getElementById('msgGenerate').style.display = 'none';
         
-        // Kosongkan form
         document.getElementById('suppId').value = '';
         document.getElementById('suppName').value = '';
         document.getElementById('suppAddress').value = '';
         
+        // Reset tabel barang dan packing
         renderBarang();
         renderPacking();
       }
     }
 
+    // ... (Sisa fungsi generateRequestNo, tambahBarang, dll tetap sama seperti sebelumnya)
     function generateRequestNo() {
       const dateVal = document.getElementById('outDate').value;
       const suppVal = document.getElementById('suppId').value;
