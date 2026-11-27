@@ -21,8 +21,8 @@
   <div class="main-content">
     <div class="topbar">
       <h3>Input Movement GB Sample EXPORT (OUT)</h3>
-      <!-- Tombol Kembali memicu fungsi batal -->
-      <a href="#" onclick="batalInput()" class="btn btn-secondary btn-small">← Kembali ke Tabel</a>
+      <!-- Tombol Kembali: Langsung kembali tanpa menyimpan -->
+      <a href="/input-out.html" class="btn btn-secondary btn-small">← Kembali ke Tabel</a>
     </div>
     
     <div class="container">
@@ -64,7 +64,7 @@
           <label>Address</label>
           <textarea id="suppAddress" rows="3" disabled></textarea>
         </div>
-        <button class="btn btn-primary" onclick="generateRequestNo()" id="btnGenerate">💾 Simpan Dokumen & Generate Request No</button>
+        <button class="btn btn-primary" onclick="generateRequestNo()" id="btnGenerate">💾 Generate Request No</button>
         <p id="msgGenerate" style="color: #059669; font-size: 13px; display: none; margin-top:10px;">✅ Request Number berhasil di-generate!</p>
       </div>
 
@@ -111,25 +111,25 @@
         <button class="btn btn-primary" onclick="tambahBox()">+ Tambah Box Lain</button>
         
         <hr style="margin: 20px 0;">
-        <button class="btn btn-success" style="width: 100%; padding: 15px; font-size: 16px;" onclick="finalSubmit()">Simpan Semua & Kirim ke Atasan</button>
+        <!-- SATU-SATUNYA TOMBOL YANG MENYIMPAN KE DATABASE -->
+        <button class="btn btn-success" style="width: 100%; padding: 15px; font-size: 16px;" onclick="kirimKeAtasan()">Simpan Semua & Kirim ke Atasan</button>
       </div>
     </div>
   </div>
 
   <script src="/js/masterData.js"></script>
   <script>
-    // Cek parameter URL ?new=true
     const urlParams = new URLSearchParams(window.location.search);
     const isNew = urlParams.get('new') === 'true';
 
-    // Inisialisasi state kosong
+    // State Sementara (Tidak akan masuk database sampai final submit)
     let currentDoc = {
       id: 'req-' + Date.now(),
       request_no: '',
       type: 'OUT',
       tanggal: new Date().toISOString().slice(0,10),
       surindo_pic: 'Darijok',
-      status: 'draft', // Status ini hanya untuk internal sementara
+      status: 'pending', // Langsung pending karena tidak ada sistem draft
       items: [],
       packing: []
     };
@@ -141,18 +141,6 @@
 
     const partSel = document.getElementById('outPartName');
     MASTER_PARTS.forEach(p => partSel.innerHTML += `<option value="${p.part_no}">${p.part_name}</option>`);
-
-    // ================= FUNGSI BATAL (Hapus Draft) =================
-    function batalInput() {
-      if (currentDoc.request_no === '') {
-        // Jika belum di-generate, berarti masih draft. Hapus dari memori.
-        let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
-        allRequests = allRequests.filter(r => r.id !== currentDoc.id);
-        localStorage.setItem('requests', JSON.stringify(allRequests));
-        alert('Input dibatalkan. Draft telah dihapus.');
-      }
-      window.location.href = '/input-out.html';
-    }
 
     function switchTab(tab, btn) {
       document.querySelectorAll('.tabnav button').forEach(b => b.classList.remove('active'));
@@ -167,6 +155,9 @@
       if (supp) {
         document.getElementById('suppName').value = supp.name;
         document.getElementById('suppAddress').value = supp.address;
+      } else {
+        document.getElementById('suppName').value = '';
+        document.getElementById('suppAddress').value = '';
       }
     }
 
@@ -178,6 +169,7 @@
         document.getElementById('outPartNo').value = part.part_no;
         document.getElementById('outUnit').value = part.unit;
 
+        // Hitung Saldo Akhir (Hanya dari data tersimpan)
         let allReqs = JSON.parse(localStorage.getItem('requests') || '[]');
         let saldo = 0;
         allReqs.forEach(r => {
@@ -196,14 +188,12 @@
       const tgl = document.getElementById('outDate').value;
       if (!pic || !tgl) return;
 
-      // JIKA INI DOKUMEN BARU (URL ?new=true), KOSONGKAN SEMUA
+      // Saat form baru dibuka (?new=true), pastikan bersih total
       if (isNew) {
-        isNew = false; // Hanya clear saat pertama load
-        document.getElementById('outPic').value = 'Darijok';
-        document.getElementById('outDate').value = new Date().toISOString().slice(0,10);
+        isNew = false;
         document.getElementById('reqNo').textContent = '(Belum di-generate)';
         document.getElementById('btnGenerate').disabled = false;
-        document.getElementById('btnGenerate').textContent = '💾 Simpan Dokumen & Generate Request No';
+        document.getElementById('btnGenerate').textContent = '💾 Generate Request No';
         document.getElementById('btnGenerate').style.background = '#1e3a8a';
         document.getElementById('msgGenerate').style.display = 'none';
         document.getElementById('suppId').value = '';
@@ -211,12 +201,12 @@
         document.getElementById('suppAddress').value = '';
         renderBarang();
         renderPacking();
-        return; // Berhenti di sini, jangan cari data lama
+        return;
       }
 
       let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
       
-      // Cari data
+      // Cari dokumen yang SUDAH TERSIMPAN di tanggal & PIC ini
       const existing = allRequests.find(r => 
         r.type === 'OUT' && 
         r.surindo_pic === pic && 
@@ -225,11 +215,11 @@
       );
 
       if (existing) {
+        // Jika sudah ada, kunci form (tidak bisa buat baru di hari yang sama untuk PIC yang sama)
         currentDoc = existing;
         document.getElementById('reqNo').textContent = currentDoc.request_no;
-        
         document.getElementById('btnGenerate').disabled = true;
-        document.getElementById('btnGenerate').textContent = '✅ Dokumen Sudah Ada (Tersimpan)';
+        document.getElementById('btnGenerate').textContent = '✅ Dokumen Sudah Ada';
         document.getElementById('btnGenerate').style.background = '#64748b';
         document.getElementById('msgGenerate').style.display = 'block';
         
@@ -243,20 +233,20 @@
         renderBarang();
         renderPacking();
       } else {
-        // JIKA TIDAK ADA, KOSONGKAN SEMUA
+        // Jika belum ada, reset form kosong
         currentDoc = {
           id: 'req-' + Date.now(),
           request_no: '',
           type: 'OUT',
           tanggal: tgl,
           surindo_pic: pic,
-          status: 'draft',
+          status: 'pending',
           items: [],
           packing: []
         };
         document.getElementById('reqNo').textContent = '(Belum di-generate)';
         document.getElementById('btnGenerate').disabled = false;
-        document.getElementById('btnGenerate').textContent = '💾 Simpan Dokumen & Generate Request No';
+        document.getElementById('btnGenerate').textContent = '💾 Generate Request No';
         document.getElementById('btnGenerate').style.background = '#1e3a8a';
         document.getElementById('msgGenerate').style.display = 'none';
         document.getElementById('suppId').value = '';
@@ -266,6 +256,7 @@
         renderPacking();
       }
     }
+
     // ================= GENERATE REQUEST NUMBER =================
     function generateRequestNo() {
       const dateVal = document.getElementById('outDate').value;
@@ -274,13 +265,12 @@
       if (!dateVal || !suppVal) return alert('Tanggal dan Supplier wajib diisi!');
       if (currentDoc.request_no !== '') return alert('Request Number sudah di-generate!');
 
-      // AMBIL DATA DARI DATABASE (LOCALSTORAGE)
+      // Ambil data dari LocalStorage untuk mencari sequence
       let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
       
-      // CARI NOMOR URUT TERAKHIR HANYA UNTUK TANGGAL INI (YANG SUDAH TERSIMPAN)
       let maxSeq = 0;
       allRequests.forEach(r => {
-        // Pastikan itu tipe OUT, formatnya benar, dan tanggalnya sama
+        // Patokan sequence: Tipe OUT, Tanggal Sama, dan formatnya OUT-I-
         if (r.type === 'OUT' && r.tanggal === dateVal && r.request_no && r.request_no.startsWith('OUT-I-')) {
           const parts = r.request_no.split('-');
           if (parts.length === 4) {
@@ -290,12 +280,11 @@
         }
       });
 
-      // Buat nomor baru
       const year = new Date(dateVal).getFullYear().toString().slice(-2);
       const nextSeq = String(maxSeq + 1).padStart(3, '0');
       const newReqNo = `OUT-I-${year}-${nextSeq}`;
 
-      // Update state & tampilan
+      // Simpan ke state sementara (BELUM MASUK LOCALSTORAGE)
       currentDoc.request_no = newReqNo;
       currentDoc.supplier_name = document.getElementById('suppName').value;
       currentDoc.surindo_pic = document.getElementById('outPic').value;
@@ -309,8 +298,10 @@
       document.getElementById('btnGenerate').style.background = '#64748b';
     }
 
+    // ================= FUNGSI TAB 2 (BARANG) =================
     function tambahBarang() {
-      if (currentDoc.request_no === '') return alert('Klik "Simpan Dokumen" di Tab 1 terlebih dahulu!');
+      if (currentDoc.request_no === '') return alert('Klik "Generate Request No" di Tab 1 terlebih dahulu!');
+      
       const pName = document.getElementById('outPartName').options[document.getElementById('outPartName').selectedIndex].text;
       const pNo = document.getElementById('outPartNo').value;
       const qty = Number(document.getElementById('outQty').value);
@@ -319,10 +310,17 @@
       if (!pNo || qty <= 0) return alert('Isi barang dengan benar');
       if (qty > saldo) return alert('Qty OUT melebihi Saldo Akhir!');
 
-      currentDoc.items.push({ category: document.getElementById('outCategory').value, part_name: pName, part_no: pNo, qty_out: qty });
-      saveToLocal();
+      // Hanya masuk ke array state, belum ke LocalStorage
+      currentDoc.items.push({ 
+        category: document.getElementById('outCategory').value, 
+        part_name: pName, 
+        part_no: pNo, 
+        qty_out: qty 
+      });
+      
       renderBarang();
       
+      // Reset input form barang
       document.getElementById('outQty').value = '0';
       document.getElementById('outSaldo').value = '';
       document.getElementById('outPartName').value = '';
@@ -343,10 +341,10 @@
 
     function hapusBarang(idx) {
       currentDoc.items.splice(idx, 1);
-      saveToLocal();
-      renderBarang();
+      renderBarang(); // Hanya update tampilan, tidak save ke localStorage
     }
 
+    // ================= FUNGSI TAB 3 (PACKING) =================
     function tambahBox() {
       const container = document.getElementById('packingContainer');
       const div = document.createElement('div');
@@ -364,6 +362,7 @@
       const container = document.getElementById('packingContainer');
       container.innerHTML = '';
       if (!currentDoc.packing || currentDoc.packing.length === 0) {
+        // Tampilkan form packing default kosong 1 baris
         container.innerHTML = `
           <div class="packing-row grid-3" style="margin-bottom:10px;">
             <div class="form-row"><label>Jumlah Box</label><input type="number" class="packBox" /></div>
@@ -386,9 +385,11 @@
       });
     }
 
-    function finalSubmit() {
-      if (currentDoc.request_no === '') return alert('Simpan Dokumen di Tab 1 terlebih dahulu!');
+    // ================= FINAL SUBMIT (SIMPAN KE LOCALSTORAGE) =================
+    function kirimKeAtasan() {
+      if (currentDoc.request_no === '') return alert('Klik "Generate Request No" di Tab 1 terlebih dahulu!');
 
+      // Ambil data packing terakhir dari inputan DOM
       const rows = document.querySelectorAll('.packing-row');
       currentDoc.packing = Array.from(rows).map(r => ({
         jumlah_box: r.querySelector('.packBox').value,
@@ -399,22 +400,16 @@
       if (currentDoc.items.length === 0) return alert('Barang belum diisi!');
       if (currentDoc.packing.length === 0) return alert('Packing List belum diisi!');
 
-      currentDoc.status = 'pending';
-      saveToLocal();
+      // BARU SIMPAN KE LOCALSTORAGE
+      let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+      allRequests.push(currentDoc);
+      localStorage.setItem('requests', JSON.stringify(allRequests));
 
       alert('Berhasil dikirim ke atasan!');
       window.location.href = '/input-out.html'; 
     }
 
-    function saveToLocal() {
-      let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
-      const idx = allRequests.findIndex(r => r.id === currentDoc.id);
-      if (idx !== -1) allRequests[idx] = currentDoc;
-      else allRequests.push(currentDoc);
-      localStorage.setItem('requests', JSON.stringify(allRequests));
-    }
-
-    // Panggil saat halaman dimuat
+    // Cek form saat pertama dimuat
     checkExistingDoc();
   </script>
 </body>
