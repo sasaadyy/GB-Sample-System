@@ -2,100 +2,144 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <title>Database OUT</title>
+  <title>Dashboard</title>
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
+  <!-- SIDEBAR -->
   <div class="sidebar">
-    <h2>Factory 1</h2>
-    <a href="/dashboard.html">📊 Dashboard</a>
+    <h2>Factory Golf Ball 1</h2>
+    <a href="/dashboard.html" class="active">📊 Dashboard</a>
     <a href="/input-in.html">📥 Input IN</a>
-    <a href="/input-out.html" class="active">📤 Input OUT</a>
+    <a href="/input-out.html">📤 Input OUT</a>
     <a href="/report.html">📑 Report</a>
-    <a href="/index.html" style="margin-top: auto;">🚪 Logout</a>
   </div>
 
+  <!-- MAIN CONTENT -->
   <div class="main-content">
     <div class="topbar">
-      <h3>Database Barang Keluar (OUT)</h3>
+      <h3 style="margin:0;">Dashboard Overview</h3>
+      <div>Role: <strong>Admin</strong></div>
     </div>
-    
-    <div class="container">
-      <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <h3 style="margin: 0;">Riwayat Data OUT</h3>
-          <!-- Tombol Tambah: mengirim parameter ?new=true untuk memastikan form kosong -->
-          <a href="/form-out.html?new=true" class="btn btn-primary">+ Tambah Input OUT</a>
-        </div>
 
+    <div class="container">
+      <!-- TOTAL STOK -->
+      <h3>Total Stok Barang (Berdasarkan Kategori)</h3>
+      <div class="grid-3" id="stockContainer">
+        <!-- Diisi JS -->
+      </div>
+
+      <!-- RIWAYAT DOKUMEN -->
+      <h3 style="margin-top: 30px;">Riwayat Dokumen</h3>
+      <div class="card">
         <table>
           <thead>
             <tr>
-              <th>Request No</th>
+              <th>Req No</th>
+              <th>Tipe</th>
               <th>Tanggal</th>
-              <th>PIC</th>
-              <th>Supplier</th>
-              <th>Status</th>
+              <th>PIC / Supplier</th>
+              <th>Status Approval</th>
               <th>Aksi</th>
             </tr>
           </thead>
-          <tbody id="tableOUTBody"></tbody>
+          <tbody id="historyBody"></tbody>
         </table>
       </div>
     </div>
   </div>
 
   <script>
-    let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+    const allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+
+    // ================= 1. RENDER STOK =================
+    const stockContainer = document.getElementById('stockContainer');
+    const stockData = {}; 
     
-    // Hanya tampilkan data yang SUDAH terkirim (Pending / Approved)
-    // Dan abaikan data lama yang belum punya request_no baru (OUT-I)
-    let dataOUT = allRequests.filter(r => 
-      r.type === 'OUT' && 
-      (r.status === 'pending' || r.status === 'approved') &&
-      r.request_no && r.request_no.startsWith('OUT-I-')
-    );
-
-    const tbody = document.getElementById('tableOUTBody');
-
-    function renderTable() {
-      if (dataOUT.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px;">Belum ada data OUT.</td></tr>';
-        return;
+    allRequests.forEach(r => {
+      if (r.type === 'IN' && r.item) {
+        stockData[r.category] = (stockData[r.category] || 0) + Number(r.item.qty);
+      } else if (r.type === 'OUT' && r.status === 'approved' && r.items) {
+        r.items.forEach(it => {
+          if(it.category) {
+            stockData[it.category] = (stockData[it.category] || 0) - Number(it.qty_out);
+          }
+        });
       }
+    });
 
-      dataOUT.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+    if (Object.keys(stockData).length === 0) {
+      stockContainer.innerHTML = '<div class="card" style="grid-column: 1/-1; text-align:center;">Belum ada data stok</div>';
+    } else {
+      for (const [cat, total] of Object.entries(stockData)) {
+        stockContainer.innerHTML += `
+          <div class="card">
+            <div style="font-size: 13px; color: #64748b;">${cat}</div>
+            <div style="font-size: 24px; font-weight: bold; color: #1e3a8a;">${total}</div>
+          </div>
+        `;
+      }
+    }
 
-      tbody.innerHTML = dataOUT.map(r => {
-        let badge = '';
-        if (r.status === 'pending') badge = '<span class="badge" style="background:#fef3c7;color:#92400e;">Pending</span>';
-        else if (r.status === 'approved') badge = '<span class="badge" style="background:#d1fae5;color:#065f46;">Approved</span>';
+    // ================= 2. RENDER RIWAYAT =================
+    // Filter ketat: Hanya tampilkan data yang punya format request_no baru (mengabaikan data sampah lama)
+    const validRequests = allRequests.filter(r => {
+      if (r.type === 'IN') return r.request_no && r.request_no.startsWith('IN-I-');
+      if (r.type === 'OUT') return r.request_no && r.request_no.startsWith('OUT-I-');
+      return false;
+    });
+
+    const historyBody = document.getElementById('historyBody');
+    
+    if (validRequests.length === 0) {
+      historyBody.innerHTML = '<tr><td colspan="6" style="text-align:center">Belum ada riwayat</td></tr>';
+    } else {
+      validRequests.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+      
+      historyBody.innerHTML = validRequests.map(r => {
+        let statusBadge = '-';
+        
+        if (r.type === 'OUT') {
+          if (r.status === 'pending') statusBadge = '<span class="badge" style="background:#fef3c7;color:#92400e;">Pending</span>';
+          else if (r.status === 'approved') statusBadge = '<span class="badge" style="background:#d1fae5;color:#065f46;">Approved</span>';
+        } else if (r.type === 'IN') {
+          statusBadge = '<span class="badge" style="background:#dbeafe;color:#1e40af;">Received</span>';
+        }
+
+        let displayName = '-';
+        if (r.type === 'OUT') displayName = r.supplier_name || '-';
+        else if (r.type === 'IN') displayName = r.item && r.item.part_name ? r.item.part_name : '-';
 
         return `
           <tr>
-            <td><strong>${r.request_no}</strong></td>
+            <!-- Menampilkan persis request_no dari database -->
+            <td><strong>${r.request_no}</strong></td> 
+            <td>${r.type}</td>
             <td>${r.tanggal}</td>
-            <td>${r.surindo_pic}</td>
-            <td>${r.supplier_name || '-'}</td>
-            <td>${badge}</td>
+            <td>${displayName}</td>
+            <td>${statusBadge}</td>
             <td>
-              <a href="/preview.html?id=${r.id}" class="btn btn-primary btn-small">Preview TR</a>
-              <button class="btn btn-danger btn-small" onclick="hapusOUT('${r.id}')">Hapus</button>
+              ${r.type === 'OUT' && r.status === 'pending' 
+                ? `<button class="btn btn-success btn-small" onclick="approve('${r.id}')">Approve</button>` 
+                : (r.type === 'OUT' ? `<a href="/preview.html?id=${r.id}" class="btn btn-primary btn-small">Preview TR</a>` : '-')
+              }
             </td>
           </tr>
         `;
       }).join('');
     }
 
-    function hapusOUT(id) {
-      if (!confirm('Yakin ingin menghapus data OUT ini?')) return;
-      allRequests = allRequests.filter(r => r.id !== id);
-      localStorage.setItem('requests', JSON.stringify(allRequests));
-      dataOUT = allRequests.filter(r => r.type === 'OUT' && (r.status === 'pending' || r.status === 'approved'));
-      renderTable();
+    function approve(id) {
+      if(!confirm('Approve dokumen ini?')) return;
+      
+      const reqs = JSON.parse(localStorage.getItem('requests') || '[]');
+      const doc = reqs.find(r => r.id === id);
+      if (doc) {
+        doc.status = 'approved';
+        localStorage.setItem('requests', JSON.stringify(reqs));
+        location.reload();
+      }
     }
-
-    renderTable();
   </script>
 </body>
 </html>
