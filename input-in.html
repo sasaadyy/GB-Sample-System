@@ -19,7 +19,7 @@
     <div class="topbar">
       <h3>Database Barang Masuk (IN)</h3>
     </div>
-    
+
     <div class="container">
       <div class="card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -30,76 +30,83 @@
         <table>
           <thead>
             <tr>
-              <th>Doc No.</th>
+              <th>Doc Number</th>
+              <th>Tanggal</th>
+              <th>PIC</th>
               <th>Part Name</th>
-              <th>Part Number</th>
-              <th>Qty IN</th>
+              <th>Jumlah</th>
               <th>Unit</th>
               <th>Aksi</th>
             </tr>
           </thead>
-          <tbody id="tableINBody"></tbody>
+          <tbody id="tbodyIN"></tbody>
         </table>
       </div>
     </div>
   </div>
 
   <script>
-    let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
-    let dataIN = allRequests.filter(r => r.type === 'IN' && r.items); // Pastikan ada items
+    const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-    const tbody = document.getElementById('tableINBody');
+    function renderTabel() {
+      const all = JSON.parse(localStorage.getItem('requests') || '[]');
+      const docs = all
+        .filter(r => r.type === 'IN')
+        .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '') || (b.request_no || '').localeCompare(a.request_no || ''));
 
-    function renderTable() {
-      if (dataIN.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center">Belum ada data IN.</td></tr>';
+      const tbody = document.getElementById('tbodyIN');
+
+      if (docs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center">Belum ada data IN</td></tr>';
         return;
       }
 
-      // Urutkan dari yang terbaru
-      dataIN.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+      tbody.innerHTML = docs.map(r => {
+        // Support format baru (items[]) dan format lama (item tunggal)
+        const items = r.items || (r.item ? [r.item] : []);
+        const span = Math.max(items.length, 1);
+        const topBorder = 'border-top: 2px solid #e2e8f0;';
 
-      let html = '';
-      
-      dataIN.forEach(doc => {
-        // Looping setiap barang di dalam 1 dokumen
-        doc.items.forEach((item, index) => {
-          html += `
+        if (items.length === 0) {
+          return `
             <tr>
-              <!-- Tampilkan Request No & Tanggal hanya di baris pertama -->
-              <td>
-                ${index === 0 ? `<strong>${doc.request_no}</strong><br><small>${doc.tanggal}</small>` : ''}
-              </td>
-              <td>${item.part_name}</td>
-              <td>${item.part_no}</td>
-              <td>${item.qty}</td>
-              <td>${item.unit}</td>
-              <!-- Tombol Hapus hanya muncul di baris pertama -->
-              <td>
-                ${index === 0 ? `<button class="btn btn-danger btn-small" onclick="hapusIN('${doc.id}')">Hapus Dokumen</button>` : ''}
-              </td>
-            </tr>
-          `;
-        });
-        
-        // Tambahkan garis pemisah antar dokumen
-        html += `<tr><td colspan="6" style="border-bottom: 2px solid #e2e8f0;"></td></tr>`;
-      });
+              <td style="${topBorder}"><strong>${esc(r.request_no)}</strong></td>
+              <td style="${topBorder}">${esc(r.tanggal)}</td>
+              <td style="${topBorder}">${esc(r.surindo_pic || '-')}</td>
+              <td colspan="3" style="${topBorder} text-align:center">-</td>
+              <td style="${topBorder}"><button class="btn btn-danger btn-small" onclick="hapusDokumen('${esc(r.id)}')">Hapus Dokumen</button></td>
+            </tr>`;
+        }
 
-      tbody.innerHTML = html;
+        return items.map((it, i) => `
+          <tr>
+            ${i === 0 ? `
+              <td rowspan="${span}" style="${topBorder} vertical-align: top;"><strong>${esc(r.request_no)}</strong></td>
+              <td rowspan="${span}" style="${topBorder} vertical-align: top;">${esc(r.tanggal)}</td>
+              <td rowspan="${span}" style="${topBorder} vertical-align: top;">${esc(r.surindo_pic || '-')}</td>
+            ` : ''}
+            <td style="${i === 0 ? topBorder : ''}">${esc(it.part_name)}</td>
+            <td style="${i === 0 ? topBorder : ''}">${esc(it.qty)}</td>
+            <td style="${i === 0 ? topBorder : ''}">${esc(it.unit)}</td>
+            ${i === 0 ? `
+              <td rowspan="${span}" style="${topBorder} vertical-align: top;">
+                <button class="btn btn-danger btn-small" onclick="hapusDokumen('${esc(r.id)}')">Hapus Dokumen</button>
+              </td>
+            ` : ''}
+          </tr>
+        `).join('');
+      }).join('');
     }
 
-    function hapusIN(id) {
-      if (!confirm('Yakin ingin menghapus seluruh dokumen IN ini?')) return;
-      
-      allRequests = allRequests.filter(r => r.id !== id);
-      localStorage.setItem('requests', JSON.stringify(allRequests));
-      
-      dataIN = allRequests.filter(r => r.type === 'IN' && r.items);
-      renderTable();
+    function hapusDokumen(id) {
+      if (!confirm('Hapus dokumen ini? Saldo stok akan ikut berkurang.')) return;
+      let all = JSON.parse(localStorage.getItem('requests') || '[]');
+      all = all.filter(r => r.id !== id);
+      localStorage.setItem('requests', JSON.stringify(all));
+      renderTabel();
     }
 
-    renderTable();
+    renderTabel();
   </script>
 </body>
 </html>
