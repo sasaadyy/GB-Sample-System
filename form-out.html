@@ -6,6 +6,7 @@
   <link rel="stylesheet" href="/css/style.css" />
   <style>
     input:disabled, textarea:disabled { background-color: #e2e8f0 !important; color: #64748b !important; cursor: not-allowed !important; }
+    .tabnav button.locked { opacity: .45; cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -26,13 +27,13 @@
 
     <div class="container">
       <div class="card" style="padding: 15px 24px; display:flex; gap: 30px; background:#e0e7ff;">
-        <div><strong>Doc No:</strong> <span id="reqNo">(Belum di-generate)</span></div>
+        <div><strong>Doc Number:</strong> <span id="reqNo">(Belum di-generate)</span></div>
       </div>
 
       <div class="tabnav">
-        <button class="active" onclick="switchTab('dokumen', this)">1. Dokumen</button>
-        <button onclick="switchTab('barang', this)">2. Barang</button>
-        <button onclick="switchTab('packing', this)">3. Packing List</button>
+        <button class="active" data-tab="dokumen" onclick="switchTab('dokumen')">1. Dokumen</button>
+        <button class="locked" data-tab="barang" onclick="switchTab('barang')">2. Barang</button>
+        <button class="locked" data-tab="packing" onclick="switchTab('packing')">3. Packing List</button>
       </div>
 
       <!-- TAB 1: DOKUMEN -->
@@ -63,20 +64,13 @@
           <label>Address</label>
           <textarea id="suppAddress" rows="3" disabled></textarea>
         </div>
-
-        <!-- BARU: kontak tujuan, section, purpose -->
-        <div class="grid-3">
-          <div class="form-row"><label>PIC Tujuan</label><input type="text" id="destPic" placeholder="mis. Sample to KOBE" /></div>
-          <div class="form-row"><label>TEL</label><input type="text" id="destTel" /></div>
-          <div class="form-row"><label>FAX</label><input type="text" id="destFax" /></div>
-        </div>
         <div class="grid-2">
-          <div class="form-row"><label>Request Section</label><input type="text" id="reqSection" value="GOLF BALL WORKS TECHNICAL FACT. #1" /></div>
+          <div class="form-row"><label>PIC Supplier</label><input type="text" id="destPic" placeholder="mis. Sample to KOBE" /></div>
           <div class="form-row"><label>Purpose</label><input type="text" id="purpose" placeholder="mis. Sample Test Endurance" /></div>
         </div>
 
-        <button class="btn btn-primary" onclick="generateRequestNo()" id="btnGenerate">💾 Generate Request No</button>
-        <p id="msgGenerate" style="color: #059669; font-size: 13px; display: none; margin-top:10px;">✅ Request Number berhasil di-generate!</p>
+        <button class="btn btn-primary" onclick="generateRequestNo()" id="btnGenerate">💾 Generate Doc Number</button>
+        <p id="msgGenerate" style="color: #059669; font-size: 13px; display: none; margin-top:10px;">✅ Doc Number berhasil di-generate!</p>
       </div>
 
       <!-- TAB 2: BARANG -->
@@ -117,19 +111,6 @@
         <button class="btn btn-primary" onclick="tambahBox()">+ Tambah Box Lain</button>
 
         <hr style="margin: 20px 0;">
-        <!-- BARU: Send By & Charge -->
-        <div class="grid-2">
-          <div class="form-row">
-            <label>Send By</label>
-            <select id="sendBy"><option>Air</option><option>Sea</option><option>Courier</option></select>
-          </div>
-          <div class="form-row">
-            <label>Charge</label>
-            <select id="charge"><option>Sender</option><option>Receiver</option></select>
-          </div>
-        </div>
-
-        <hr style="margin: 20px 0;">
         <button class="btn btn-success" style="width: 100%; padding: 15px; font-size: 16px;" onclick="kirimKeAtasan()">Simpan Semua & Kirim ke Atasan</button>
       </div>
     </div>
@@ -138,7 +119,7 @@
   <script src="/js/masterData.js"></script>
   <script>
     const urlParams = new URLSearchParams(window.location.search);
-    let isNew = urlParams.get('new') === 'true';   // FIX: tadinya const, padahal di-assign ulang di checkExistingDoc()
+    let isNew = urlParams.get('new') === 'true';
     const MAX_ITEMS = 20;
 
     function newDoc(tgl, pic) {
@@ -163,10 +144,34 @@
     const partSel = document.getElementById('outPartName');
     MASTER_PARTS.forEach(p => partSel.innerHTML += `<option value="${p.part_no}">${p.part_name}</option>`);
 
-    function switchTab(tab, btn) {
+    // ================= TAB (BERURUTAN) =================
+    function setLock(tab, locked) {
+      document.querySelector(`.tabnav button[data-tab="${tab}"]`).classList.toggle('locked', locked);
+    }
+
+    function updateTabLock() {
+      const barangOk = currentDoc.request_no !== '';
+      const packingOk = barangOk && currentDoc.items.length > 0;
+      setLock('barang', !barangOk);
+      setLock('packing', !packingOk);
+
+      // Kalau tab aktif jadi terkunci, balik ke tab sebelumnya
+      const active = document.querySelector('.tab-content.active').id.replace('tab-', '');
+      if (active === 'packing' && !packingOk) switchTab(barangOk ? 'barang' : 'dokumen');
+      else if (active === 'barang' && !barangOk) switchTab('dokumen');
+    }
+
+    function switchTab(tab) {
+      if (tab === 'barang' && currentDoc.request_no === '') {
+        return alert('Lengkapi data Dokumen dan klik "Generate Doc Number" terlebih dahulu!');
+      }
+      if (tab === 'packing') {
+        if (currentDoc.request_no === '') return alert('Lengkapi data Dokumen dan klik "Generate Doc Number" terlebih dahulu!');
+        if (currentDoc.items.length === 0) return alert('Isi minimal 1 barang di tab Barang terlebih dahulu!');
+      }
       document.querySelectorAll('.tabnav button').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-      btn.classList.add('active');
+      document.querySelector(`.tabnav button[data-tab="${tab}"]`).classList.add('active');
       document.getElementById('tab-' + tab).classList.add('active');
     }
 
@@ -177,6 +182,23 @@
       document.getElementById('suppAddress').value = supp ? supp.address : '';
     }
 
+    // ================= SALDO (SINKRON DENGAN DATA IN) =================
+    function hitungSaldo(partNo) {
+      const all = JSON.parse(localStorage.getItem('requests') || '[]');
+      let saldo = 0;
+      all.forEach(r => {
+        if (r.type === 'IN') {
+          const inItems = r.items || (r.item ? [r.item] : []);   // format baru & lama
+          inItems.forEach(it => { if (it.part_no === partNo) saldo += Number(it.qty) || 0; });
+        } else if (r.type === 'OUT' && r.status === 'approved' && r.items && r.id !== currentDoc.id) {
+          r.items.forEach(it => { if (it.part_no === partNo) saldo -= Number(it.qty_out) || 0; });
+        }
+      });
+      // Kurangi barang yang sudah ditambahkan di dokumen yang sedang dibuat
+      currentDoc.items.forEach(it => { if (it.part_no === partNo) saldo -= Number(it.qty_out) || 0; });
+      return saldo;
+    }
+
     function autoFillPart() {
       const pNo = document.getElementById('outPartName').value;
       const part = MASTER_PARTS.find(p => p.part_no === pNo);
@@ -184,56 +206,36 @@
       if (part) {
         document.getElementById('outPartNo').value = part.part_no;
         document.getElementById('outUnit').value = part.unit;
-
-        let allReqs = JSON.parse(localStorage.getItem('requests') || '[]');
-        let saldo = 0;
-        allReqs.forEach(r => {
-          if (r.type === 'IN' && r.item.part_no === part.part_no) saldo += Number(r.item.qty);
-          if (r.type === 'OUT' && r.status === 'approved' && r.items) {
-            r.items.forEach(it => { if (it.part_no === part.part_no) saldo -= Number(it.qty_out); });
-          }
-        });
-        document.getElementById('outSaldo').value = saldo;
+        document.getElementById('outSaldo').value = hitungSaldo(part.part_no);
+      } else {
+        document.getElementById('outPartNo').value = '';
+        document.getElementById('outUnit').value = '';
+        document.getElementById('outSaldo').value = '';
       }
     }
 
-    // ================= META BARU (kontak tujuan, section, purpose, send by, charge) =================
+    // ================= META DOKUMEN (PIC Supplier & Purpose) =================
     function resetMeta() {
       document.getElementById('destPic').value = '';
-      document.getElementById('destTel').value = '';
-      document.getElementById('destFax').value = '';
-      document.getElementById('reqSection').value = 'GOLF BALL WORKS TECHNICAL FACT. #1';
       document.getElementById('purpose').value = '';
-      document.getElementById('sendBy').value = 'Air';
-      document.getElementById('charge').value = 'Sender';
     }
 
     function fillMeta(d) {
       document.getElementById('destPic').value = d.dest_pic || '';
-      document.getElementById('destTel').value = d.dest_tel || '';
-      document.getElementById('destFax').value = d.dest_fax || '';
-      document.getElementById('reqSection').value = d.request_section || 'GOLF BALL WORKS TECHNICAL FACT. #1';
       document.getElementById('purpose').value = d.purpose || '';
-      document.getElementById('sendBy').value = d.send_by || 'Air';
-      document.getElementById('charge').value = d.charge || 'Sender';
     }
 
     function collectMeta() {
       currentDoc.supplier_name = document.getElementById('suppName').value;
       currentDoc.supplier_address = document.getElementById('suppAddress').value;
       currentDoc.dest_pic = document.getElementById('destPic').value.trim();
-      currentDoc.dest_tel = document.getElementById('destTel').value.trim();
-      currentDoc.dest_fax = document.getElementById('destFax').value.trim();
-      currentDoc.request_section = document.getElementById('reqSection').value.trim();
       currentDoc.purpose = document.getElementById('purpose').value.trim();
-      currentDoc.send_by = document.getElementById('sendBy').value;
-      currentDoc.charge = document.getElementById('charge').value;
     }
 
     function resetFormUI() {
       document.getElementById('reqNo').textContent = '(Belum di-generate)';
       document.getElementById('btnGenerate').disabled = false;
-      document.getElementById('btnGenerate').textContent = '💾 Generate Request No';
+      document.getElementById('btnGenerate').textContent = '💾 Generate Doc Number';
       document.getElementById('btnGenerate').style.background = '#1e3a8a';
       document.getElementById('msgGenerate').style.display = 'none';
       document.getElementById('suppId').value = '';
@@ -242,6 +244,7 @@
       resetMeta();
       renderBarang();
       renderPacking();
+      updateTabLock();
     }
 
     // ================= CHECK EXISTING DOC =================
@@ -282,19 +285,28 @@
         fillMeta(currentDoc);
         renderBarang();
         renderPacking();
+        updateTabLock();
       } else {
         currentDoc = newDoc(tgl, pic);
         resetFormUI();
       }
     }
 
-    // ================= GENERATE REQUEST NUMBER =================
+    // ================= GENERATE DOC NUMBER =================
     function generateRequestNo() {
       const dateVal = document.getElementById('outDate').value;
       const suppVal = document.getElementById('suppId').value;
+      const destPic = document.getElementById('destPic').value.trim();
+      const purpose = document.getElementById('purpose').value.trim();
 
-      if (!dateVal || !suppVal) return alert('Tanggal dan Supplier wajib diisi!');
-      if (currentDoc.request_no !== '') return alert('Request Number sudah di-generate!');
+      const kurang = [];
+      if (!dateVal) kurang.push('Tanggal');
+      if (!suppVal) kurang.push('Supplier');
+      if (!destPic) kurang.push('PIC Supplier');
+      if (!purpose) kurang.push('Purpose');
+      if (kurang.length) return alert('Lengkapi dulu: ' + kurang.join(', '));
+
+      if (currentDoc.request_no !== '') return alert('Doc Number sudah di-generate!');
 
       let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
 
@@ -324,27 +336,31 @@
       document.getElementById('btnGenerate').disabled = true;
       document.getElementById('btnGenerate').textContent = '✅ Siap Disimpan';
       document.getElementById('btnGenerate').style.background = '#64748b';
+
+      updateTabLock();
+      switchTab('barang');   // lanjut otomatis ke tab Barang
     }
 
-    // ================= FUNGSI TAB 2 (BARANG) =================
+    // ================= TAB 2 (BARANG) =================
     function tambahBarang() {
-      if (currentDoc.request_no === '') return alert('Klik "Generate Request No" di Tab 1 terlebih dahulu!');
+      if (currentDoc.request_no === '') return alert('Klik "Generate Doc Number" di Tab 1 terlebih dahulu!');
       if (currentDoc.items.length >= MAX_ITEMS) return alert('Maksimal ' + MAX_ITEMS + ' item per dokumen!');
 
       const pName = document.getElementById('outPartName').options[document.getElementById('outPartName').selectedIndex].text;
       const pNo = document.getElementById('outPartNo').value;
       const unit = document.getElementById('outUnit').value;
       const qty = Number(document.getElementById('outQty').value);
-      const saldo = Number(document.getElementById('outSaldo').value);
 
       if (!pNo || qty <= 0) return alert('Isi barang dengan benar');
-      if (qty > saldo) return alert('Qty OUT melebihi Saldo Akhir!');
+
+      const saldo = hitungSaldo(pNo);
+      if (qty > saldo) return alert('Qty OUT melebihi Saldo Akhir! (Saldo: ' + saldo + ')');
 
       currentDoc.items.push({
         category: document.getElementById('outCategory').value,
         part_name: pName,
         part_no: pNo,
-        unit: unit,          // BARU: dipakai di kolom Unit pada TR
+        unit: unit,
         qty_out: qty
       });
 
@@ -360,12 +376,14 @@
     function renderBarang() {
       const tbody = document.getElementById('listBarang');
       if (!currentDoc.items || currentDoc.items.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">Belum ada barang</td></tr>'; return;
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">Belum ada barang</td></tr>';
+      } else {
+        tbody.innerHTML = currentDoc.items.map((it, i) => `
+          <tr><td>${it.part_name}</td><td>${it.part_no}</td><td>${it.qty_out}</td>
+          <td><button class="btn btn-danger btn-small" onclick="hapusBarang(${i})">Hapus</button></td></tr>
+        `).join('');
       }
-      tbody.innerHTML = currentDoc.items.map((it, i) => `
-        <tr><td>${it.part_name}</td><td>${it.part_no}</td><td>${it.qty_out}</td>
-        <td><button class="btn btn-danger btn-small" onclick="hapusBarang(${i})">Hapus</button></td></tr>
-      `).join('');
+      updateTabLock();
     }
 
     function hapusBarang(idx) {
@@ -373,7 +391,7 @@
       renderBarang();
     }
 
-    // ================= FUNGSI TAB 3 (PACKING) — 1 baris = 1 box =================
+    // ================= TAB 3 (PACKING) — 1 baris = 1 box =================
     function boxRowHtml(n, p) {
       p = p || {};
       return `
@@ -407,22 +425,19 @@
 
     // ================= FINAL SUBMIT =================
     function kirimKeAtasan() {
-      if (currentDoc.request_no === '') return alert('Klik "Generate Request No" di Tab 1 terlebih dahulu!');
+      if (currentDoc.request_no === '') return alert('Klik "Generate Doc Number" di Tab 1 terlebih dahulu!');
 
       collectMeta();
 
       const rows = document.querySelectorAll('.packing-row');
       currentDoc.packing = Array.from(rows).map(r => ({
-        jumlah_box: 1,                                   // tetap ada supaya kompatibel dengan data lama
+        jumlah_box: 1,
         dimensi: r.querySelector('.packDim').value.trim(),
         gross: r.querySelector('.packGross').value
       })).filter(p => p.gross !== '');
 
       if (currentDoc.items.length === 0) return alert('Barang belum diisi!');
       if (currentDoc.packing.length === 0) return alert('Packing List belum diisi!');
-
-      currentDoc.send_by = document.getElementById('sendBy').value;
-      currentDoc.charge = document.getElementById('charge').value;
 
       let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
       allRequests.push(currentDoc);
