@@ -20,18 +20,17 @@
     .doc-box td, .doc-box th { border: 1.5px solid #000; padding: 4px 6px; vertical-align: middle; word-wrap: break-word; }
     .doc-box th { background: #d1d5db; font-weight: 700; text-align: center; }
     .lbl { font-weight: 700; text-transform: uppercase; white-space: nowrap; }
-    .top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
-    .top .to p { margin: 0 0 10px; font-size: 13px; }
-    .stamp { width: 260px; }
-    .stamp th { font-size: 11px; padding: 2px 4px; }
-    .stamp td { font-size: 11px; }
-    .stamp .sig { height: 38px; text-align: center; font-style: italic; }
-    .doc-title { text-align: center; font-size: 22px; font-weight: 700; margin: 6px 0 8px; }
+    .to p { margin: 0 0 8px; font-size: 13px; }
+    .doc-title { text-align: center; font-size: 22px; font-weight: 700; margin: 10px 0 8px; }
     .sec-title { font-weight: 700; margin: 14px 0 3px; font-size: 13px; text-transform: uppercase; }
     .c { text-align: center; }
-    .r { text-align: right; }
-    .items td { height: 17px; padding: 1px 6px; }
+    .items td { height: 16px; padding: 1px 6px; }
     .tot td { background: #d1d5db; font-weight: 700; text-align: center; }
+    .sign-wrap { display: flex; justify-content: flex-end; margin-top: 24px; page-break-inside: avoid; }
+    .sign { width: 320px; }
+    .sign .space { height: 70px; }
+    .sign .name { text-align: center; font-weight: 700; font-size: 13px; }
+    .sign .dt { font-size: 11px; }
   </style>
 </head>
 <body>
@@ -47,11 +46,21 @@
     </div>
   </div>
 
+  <script src="/js/masterData.js"></script>
   <script>
     const urlParams = new URLSearchParams(location.search);
     const reqId = urlParams.get('id');
     const allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
     const doc = allRequests.find(r => r.id === reqId);
+
+    const PARTS = (typeof MASTER_PARTS !== 'undefined') ? MASTER_PARTS : [];
+    const SUPPS = (typeof MASTER_SUPPLIERS !== 'undefined') ? MASTER_SUPPLIERS : [];
+
+    // ===== Nilai default (otomatis, tidak diisi di form) =====
+    const DEFAULT_SECTION = 'GOLF BALL WORKS TECHNICAL FACT. #1';
+    const DEFAULT_SEND_BY = 'AIR';
+    const DEFAULT_CHARGE = 'SENDER';
+    const APPROVER = 'Baihaqki';
 
     const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -76,16 +85,20 @@
       let itemsHtml = '';
       for (let i = 0; i < MAX_ITEMS; i++) {
         const it = items[i];
-        itemsHtml += it ? `
-          <tr>
-            <td class="c">${i + 1}</td>
-            <td>${esc(it.category)}</td>
-            <td>${esc(it.part_name)}</td>
-            <td class="c">${esc(it.qty_out)}</td>
-            <td class="c">${esc(it.unit)}</td>
-            <td>${esc(it.part_no)}</td>
-          </tr>` : `
-          <tr><td class="c">${i + 1}</td><td></td><td></td><td></td><td></td><td></td></tr>`;
+        if (it) {
+          const unit = it.unit || (PARTS.find(p => p.part_no === it.part_no) || {}).unit || '';
+          itemsHtml += `
+            <tr>
+              <td class="c">${i + 1}</td>
+              <td>${esc(it.category)}</td>
+              <td>${esc(it.part_name)}</td>
+              <td class="c">${esc(it.qty_out)}</td>
+              <td class="c">${esc(unit)}</td>
+              <td>${esc(it.part_no)}</td>
+            </tr>`;
+        } else {
+          itemsHtml += `<tr><td class="c">${i + 1}</td><td></td><td></td><td></td><td></td><td></td></tr>`;
+        }
       }
 
       // ===== Packing list =====
@@ -100,36 +113,17 @@
           </tr>`;
       }).join('');
 
-      // ===== Destination =====
+      // ===== Destination (nama, alamat, PIC supplier) =====
+      const address = doc.supplier_address || (SUPPS.find(s => s.name === doc.supplier_name) || {}).address || '';
       const destLines = [];
       if (doc.supplier_name) destLines.push(`<strong>${esc(doc.supplier_name)}</strong>`);
-      if (doc.supplier_address) destLines.push(esc(doc.supplier_address).replace(/\n/g, '<br>'));
-      const contact = [
-        doc.dest_pic ? 'PIC: ' + esc(doc.dest_pic) : '',
-        doc.dest_tel ? 'TEL: ' + esc(doc.dest_tel) : '',
-        doc.dest_fax ? 'FAX: ' + esc(doc.dest_fax) : ''
-      ].filter(Boolean).join(' &nbsp;&nbsp; ');
-      if (contact) destLines.push('<div style="margin-top:8px;">' + contact + '</div>');
+      if (address) destLines.push(esc(address).replace(/\n/g, '<br>'));
+      if (doc.dest_pic) destLines.push('<div style="margin-top:8px;">PIC: ' + esc(doc.dest_pic) + '</div>');
 
       document.getElementById('docContent').innerHTML = `
-        <div class="top">
-          <div class="to">
-            <p><strong>TO:</strong> PURCHASING Dept.</p>
-            <p><strong>From:</strong> G/B WORKS TECHNICAL</p>
-          </div>
-          <table class="stamp">
-            <tr><th>APPROVED</th><th></th><th>ISSUED</th></tr>
-            <tr>
-              <td class="sig">${esc(doc.approved_by || '')}</td>
-              <td class="sig"></td>
-              <td class="sig">${esc(pic)}</td>
-            </tr>
-            <tr>
-              <td>Date ${doc.approved_at ? fmtDate(doc.approved_at) : ''}</td>
-              <td></td>
-              <td>Date ${fmtDate(doc.tanggal)}</td>
-            </tr>
-          </table>
+        <div class="to">
+          <p><strong>TO:</strong> PURCHASING Dept.</p>
+          <p><strong>From:</strong> G/B WORKS TECHNICAL</p>
         </div>
 
         <div class="doc-title">TRANSPORT REQUEST SHEET</div>
@@ -140,7 +134,7 @@
             <td class="lbl">Request No.</td><td>${esc(doc.request_no)}</td>
             <td class="lbl">Date</td><td>${fmtDate(doc.tanggal)}</td>
           </tr>
-          <tr><td class="lbl">Request Section</td><td colspan="3">${esc(doc.request_section || 'GOLF BALL WORKS TECHNICAL FACT. #1')}</td></tr>
+          <tr><td class="lbl">Request Section</td><td colspan="3">${DEFAULT_SECTION}</td></tr>
           <tr><td class="lbl">Sender</td><td colspan="3">WORKS TECHNICAL SURINDO (${esc(pic.toUpperCase())})</td></tr>
           <tr><td class="lbl" style="vertical-align:top;">The Destination</td><td colspan="3" style="height:80px; vertical-align:top;">${destLines.join('<br>') || '-'}</td></tr>
           <tr><td class="lbl">Purpose</td><td colspan="3">${esc(doc.purpose || '-')}</td></tr>
@@ -164,9 +158,21 @@
 
         <table style="margin-top:16px;">
           <colgroup><col style="width:19%"><col style="width:81%"></colgroup>
-          <tr><td class="lbl">Send By</td><td>${esc((doc.send_by || '').toUpperCase())}</td></tr>
-          <tr><td class="lbl">Charge</td><td>${esc((doc.charge || '').toUpperCase())}</td></tr>
+          <tr><td class="lbl">Send By</td><td>${DEFAULT_SEND_BY}</td></tr>
+          <tr><td class="lbl">Charge</td><td>${DEFAULT_CHARGE}</td></tr>
         </table>
+
+        <div class="sign-wrap">
+          <table class="sign">
+            <tr><th>APPROVED</th><th>ISSUED</th></tr>
+            <tr><td class="space"></td><td class="space"></td></tr>
+            <tr><td class="name">${esc(doc.approved_by || APPROVER)}</td><td class="name">${esc(pic)}</td></tr>
+            <tr>
+              <td class="dt">Date: ${doc.approved_at ? fmtDate(doc.approved_at) : ''}</td>
+              <td class="dt">Date: ${fmtDate(doc.tanggal)}</td>
+            </tr>
+          </table>
+        </div>
       `;
     }
   </script>
