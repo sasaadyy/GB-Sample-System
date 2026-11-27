@@ -104,7 +104,6 @@
         </table>
 
         <hr style="margin: 20px 0;">
-        <!-- BARU: konfirmasi barang selesai -->
         <button class="btn btn-success" style="width: 100%; padding: 15px; font-size: 16px;" onclick="barangSelesai()">✅ Barang Selesai, Lanjut ke Packing List</button>
       </div>
 
@@ -298,10 +297,35 @@
       }
     }
 
+    // ================= NOMOR DOKUMEN =================
+    // Nomor berikutnya = nomor tertinggi di tahun itu + 1.
+    // Berlaku untuk semua PIC, dihitung hanya dari dokumen yang tersimpan,
+    // jadi kalau dokumen terakhir dihapus, nomornya dipakai lagi.
+    function nextDocNumber(type, dateVal) {
+      const year = dateVal.slice(2, 4);             // '2026-11-27' -> '26'
+      const head = `${type}-I-${year}-`;
+      const all = JSON.parse(localStorage.getItem('requests') || '[]');
+      let maxSeq = 0;
+      all.forEach(r => {
+        if (r.type === type && r.request_no && r.request_no.startsWith(head)) {
+          const seq = parseInt(r.request_no.slice(head.length), 10);
+          if (seq > maxSeq) maxSeq = seq;
+        }
+      });
+      return head + String(maxSeq + 1).padStart(3, '0');
+    }
+
+    // Satu PIC hanya boleh satu dokumen OUT per tanggal
+    function picSudahInput(pic, dateVal) {
+      const all = JSON.parse(localStorage.getItem('requests') || '[]');
+      return all.some(r => r.type === 'OUT' && r.surindo_pic === pic && r.tanggal === dateVal);
+    }
+
     // ================= GENERATE DOC NUMBER =================
     function generateRequestNo() {
       const dateVal = document.getElementById('outDate').value;
       const suppVal = document.getElementById('suppId').value;
+      const pic = document.getElementById('outPic').value;
       const destPic = document.getElementById('destPic').value.trim();
       const purpose = document.getElementById('purpose').value.trim();
 
@@ -313,26 +337,14 @@
       if (kurang.length) return alert('Lengkapi dulu: ' + kurang.join(', '));
 
       if (currentDoc.request_no !== '') return alert('Doc Number sudah di-generate!');
+      if (picSudahInput(pic, dateVal)) {
+        return alert(pic + ' sudah input dokumen OUT di tanggal ini. Satu PIC hanya bisa sekali per hari.');
+      }
 
-      let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
-
-      let maxSeq = 0;
-      allRequests.forEach(r => {
-        if (r.type === 'OUT' && r.tanggal === dateVal && r.request_no && r.request_no.startsWith('OUT-I-')) {
-          const parts = r.request_no.split('-');
-          if (parts.length === 4) {
-            const seq = parseInt(parts[3], 10);
-            if (seq > maxSeq) maxSeq = seq;
-          }
-        }
-      });
-
-      const year = new Date(dateVal).getFullYear().toString().slice(-2);
-      const nextSeq = String(maxSeq + 1).padStart(3, '0');
-      const newReqNo = `OUT-I-${year}-${nextSeq}`;
+      const newReqNo = nextDocNumber('OUT', dateVal);
 
       currentDoc.request_no = newReqNo;
-      currentDoc.surindo_pic = document.getElementById('outPic').value;
+      currentDoc.surindo_pic = pic;
       currentDoc.tanggal = dateVal;
       currentDoc.created_at = new Date().toISOString();
       collectMeta();
@@ -399,7 +411,7 @@
       renderBarang();
     }
 
-    // BARU: konfirmasi semua barang sudah terisi
+    // Konfirmasi semua barang sudah terisi
     function barangSelesai() {
       if (currentDoc.items.length === 0) return alert('Tambahkan minimal 1 barang terlebih dahulu!');
 
@@ -450,6 +462,17 @@
       if (currentDoc.items.length === 0) return alert('Barang belum diisi!');
       if (!currentDoc.barang_done) return alert('Klik "Barang Selesai" di tab Barang terlebih dahulu!');
 
+      let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+
+      // Dokumen yang sudah tersimpan tidak boleh disimpan ulang
+      if (allRequests.some(r => r.id === currentDoc.id)) {
+        return alert('Dokumen ini sudah tersimpan. ' + currentDoc.surindo_pic + ' tidak bisa input lagi di tanggal ini.');
+      }
+      // Cek ulang saat simpan (jaga-jaga PIC yang sama sudah menyimpan dari tab lain)
+      if (picSudahInput(currentDoc.surindo_pic, currentDoc.tanggal)) {
+        return alert(currentDoc.surindo_pic + ' sudah input dokumen OUT di tanggal ini.');
+      }
+
       collectMeta();
 
       const rows = Array.from(document.querySelectorAll('.packing-row'));
@@ -475,11 +498,16 @@
       if (packing.length === 0) return alert('Packing List belum diisi!');
       currentDoc.packing = packing;
 
-      let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+      // Kalau nomor sudah dipakai PIC lain sejak Generate, ambil nomor berikutnya
+      if (allRequests.some(r => r.request_no === currentDoc.request_no)) {
+        currentDoc.request_no = nextDocNumber('OUT', currentDoc.tanggal);
+        alert('Doc Number sebelumnya sudah dipakai PIC lain, otomatis diganti ke ' + currentDoc.request_no);
+      }
+
       allRequests.push(currentDoc);
       localStorage.setItem('requests', JSON.stringify(allRequests));
 
-      alert('Berhasil dikirim ke atasan!');
+      alert('Berhasil dikirim ke atasan! No: ' + currentDoc.request_no);
       window.location.href = '/input-out.html';
     }
 
