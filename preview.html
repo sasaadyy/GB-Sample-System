@@ -5,32 +5,45 @@
   <title>Preview Transport Request</title>
   <link rel="stylesheet" href="/css/style.css" />
   <style>
+    @page { size: A4; margin: 10mm; }
     @media print {
       .sidebar, .topbar, .no-print { display: none !important; }
       body { background: white; display: block; overflow: visible; }
       .main-content { overflow: visible; }
       .container { padding: 0; overflow: visible; }
       .card { box-shadow: none; border: none; }
+      .doc-box { border: none !important; padding: 0 !important; max-width: none !important; }
     }
-    .doc-box { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border: 1px solid #ccc; }
-    .doc-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 10px; }
-    .doc-info { display: flex; justify-content: space-between; margin-bottom: 20px; }
-    .doc-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-    .doc-table th, .doc-table td { border: 1px solid #000; padding: 8px; }
+    .doc-box { max-width: 800px; margin: 0 auto; background: white; padding: 32px 36px; border: 1px solid #ccc;
+               font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #000; }
+    .doc-box table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .doc-box td, .doc-box th { border: 1.5px solid #000; padding: 4px 6px; vertical-align: middle; word-wrap: break-word; }
+    .doc-box th { background: #d1d5db; font-weight: 700; text-align: center; }
+    .lbl { font-weight: 700; text-transform: uppercase; white-space: nowrap; }
+    .top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+    .top .to p { margin: 0 0 10px; font-size: 13px; }
+    .stamp { width: 260px; }
+    .stamp th { font-size: 11px; padding: 2px 4px; }
+    .stamp td { font-size: 11px; }
+    .stamp .sig { height: 38px; text-align: center; font-style: italic; }
+    .doc-title { text-align: center; font-size: 22px; font-weight: 700; margin: 6px 0 8px; }
+    .sec-title { font-weight: 700; margin: 14px 0 3px; font-size: 13px; text-transform: uppercase; }
+    .c { text-align: center; }
+    .r { text-align: right; }
+    .items td { height: 17px; padding: 1px 6px; }
+    .tot td { background: #d1d5db; font-weight: 700; text-align: center; }
   </style>
 </head>
 <body>
-  <!-- Main Content -->
   <div class="main-content" style="width:100%;">
     <div class="container">
       <div class="no-print" style="text-align:center; margin-bottom:20px;">
         <button class="btn btn-primary" onclick="window.print()">🖨️ Cetak / Simpan PDF</button>
         <a href="/dashboard.html" class="btn btn-danger">← Kembali</a>
+        <span id="statusBadge" style="margin-left:15px; font-weight:bold;"></span>
       </div>
 
-      <div class="doc-box" id="docContent">
-        <!-- Diisi JS -->
-      </div>
+      <div class="doc-box" id="docContent"></div>
     </div>
   </div>
 
@@ -40,65 +53,120 @@
     const allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
     const doc = allRequests.find(r => r.id === reqId);
 
+    const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    function fmtDate(v) {
+      if (!v) return '';
+      const d = new Date(v);
+      if (isNaN(d)) return esc(v);
+      return String(d.getDate()).padStart(2,'0') + '-' + MON[d.getMonth()] + '-' + d.getFullYear();
+    }
+
     if (!doc) {
       document.getElementById('docContent').innerHTML = '<h2>Data tidak ditemukan</h2>';
     } else {
-      const itemsHtml = doc.items.map(it => `
-        <tr>
-          <td>${it.part_name}</td>
-          <td>${it.part_no}</td>
-          <td>${it.qty_out}</td>
-        </tr>
-      `).join('');
+      document.getElementById('statusBadge').textContent = 'Status: ' + (doc.status || '').toUpperCase();
 
-      const packingHtml = doc.packing.map(pk => `
-        <tr>
-          <td>${pk.jumlah_box}</td>
-          <td>${pk.dimensi}</td>
-          <td>${pk.gross}</td>
-        </tr>
-      `).join('');
+      const pic = doc.surindo_pic || 'Mumuh';
+      const MAX_ITEMS = 20;
+      const items = doc.items || [];
+      const packing = doc.packing || [];
+
+      // ===== Contents (max 20 baris) =====
+      let itemsHtml = '';
+      for (let i = 0; i < MAX_ITEMS; i++) {
+        const it = items[i];
+        itemsHtml += it ? `
+          <tr>
+            <td class="c">${i + 1}</td>
+            <td>${esc(it.category)}</td>
+            <td>${esc(it.part_name)}</td>
+            <td class="c">${esc(it.qty_out)}</td>
+            <td class="c">${esc(it.unit)}</td>
+            <td>${esc(it.part_no)}</td>
+          </tr>` : `
+          <tr><td class="c">${i + 1}</td><td></td><td></td><td></td><td></td><td></td></tr>`;
+      }
+
+      // ===== Packing list =====
+      let totalWeight = 0;
+      const packingHtml = packing.map((pk, i) => {
+        totalWeight += Number(pk.gross) || 0;
+        return `
+          <tr>
+            <td class="c">Box ${i + 1}</td>
+            <td class="c">${(Number(pk.gross) || 0).toFixed(2)}</td>
+            <td class="c">${esc(pk.dimensi)}</td>
+          </tr>`;
+      }).join('');
+
+      // ===== Destination =====
+      const destLines = [];
+      if (doc.supplier_name) destLines.push(`<strong>${esc(doc.supplier_name)}</strong>`);
+      if (doc.supplier_address) destLines.push(esc(doc.supplier_address).replace(/\n/g, '<br>'));
+      const contact = [
+        doc.dest_pic ? 'PIC: ' + esc(doc.dest_pic) : '',
+        doc.dest_tel ? 'TEL: ' + esc(doc.dest_tel) : '',
+        doc.dest_fax ? 'FAX: ' + esc(doc.dest_fax) : ''
+      ].filter(Boolean).join(' &nbsp;&nbsp; ');
+      if (contact) destLines.push('<div style="margin-top:8px;">' + contact + '</div>');
 
       document.getElementById('docContent').innerHTML = `
-        <div class="doc-header">
-          <h2>TRANSPORT REQUEST (TR)</h2>
-          <p>No. ${doc.request_no}</p>
-        </div>
-        <div class="doc-info">
-          <div>
-            <p><strong>Tanggal:</strong> ${doc.tanggal}</p>
-            <p><strong>PIC:</strong> ${doc.surindo_pic || 'Mumuh'}</p>
+        <div class="top">
+          <div class="to">
+            <p><strong>TO:</strong> PURCHASING Dept.</p>
+            <p><strong>From:</strong> G/B WORKS TECHNICAL</p>
           </div>
-          <div>
-            <p><strong>Status:</strong> ${doc.status.toUpperCase()}</p>
-            <p><strong>Supplier:</strong> ${doc.supplier_name || '-'}</p>
-          </div>
+          <table class="stamp">
+            <tr><th>APPROVED</th><th></th><th>ISSUED</th></tr>
+            <tr>
+              <td class="sig">${esc(doc.approved_by || '')}</td>
+              <td class="sig"></td>
+              <td class="sig">${esc(pic)}</td>
+            </tr>
+            <tr>
+              <td>Date ${doc.approved_at ? fmtDate(doc.approved_at) : ''}</td>
+              <td></td>
+              <td>Date ${fmtDate(doc.tanggal)}</td>
+            </tr>
+          </table>
         </div>
 
-        <h4>DATA BARANG</h4>
-        <table class="doc-table">
-          <thead><tr><th>Part Name</th><th>Part No</th><th>Qty OUT</th></tr></thead>
+        <div class="doc-title">TRANSPORT REQUEST SHEET</div>
+
+        <table>
+          <colgroup><col style="width:19%"><col style="width:41%"><col style="width:10%"><col style="width:30%"></colgroup>
+          <tr>
+            <td class="lbl">Request No.</td><td>${esc(doc.request_no)}</td>
+            <td class="lbl">Date</td><td>${fmtDate(doc.tanggal)}</td>
+          </tr>
+          <tr><td class="lbl">Request Section</td><td colspan="3">${esc(doc.request_section || 'GOLF BALL WORKS TECHNICAL FACT. #1')}</td></tr>
+          <tr><td class="lbl">Sender</td><td colspan="3">WORKS TECHNICAL SURINDO (${esc(pic.toUpperCase())})</td></tr>
+          <tr><td class="lbl" style="vertical-align:top;">The Destination</td><td colspan="3" style="height:80px; vertical-align:top;">${destLines.join('<br>') || '-'}</td></tr>
+          <tr><td class="lbl">Purpose</td><td colspan="3">${esc(doc.purpose || '-')}</td></tr>
+        </table>
+
+        <div class="sec-title">Contents (max ${MAX_ITEMS} items)</div>
+        <table class="items">
+          <colgroup><col style="width:5%"><col style="width:16%"><col style="width:33%"><col style="width:9%"><col style="width:11%"><col style="width:26%"></colgroup>
+          <thead><tr><th>No</th><th>Item</th><th>Part Name</th><th>Qty</th><th>Unit</th><th>Part Number</th></tr></thead>
           <tbody>${itemsHtml}</tbody>
         </table>
 
-        <h4>PACKING LIST</h4>
-        <table class="doc-table">
-          <thead><tr><th>Jumlah Box</th><th>Dimensi</th><th>Gross Weight (Kg)</th></tr></thead>
-          <tbody>${packingHtml}</tbody>
+        <div class="sec-title">Packing List / Boxes (${packing.length} Box)</div>
+        <table>
+          <thead><tr><th>Box</th><th>Weight (kg)</th><th>Dimension (L x W x H)</th></tr></thead>
+          <tbody>
+            ${packingHtml}
+            <tr class="tot"><td>TOTAL</td><td>${totalWeight.toFixed(2)} kg</td><td>${packing.length} Box(es)</td></tr>
+          </tbody>
         </table>
 
-        <div style="margin-top: 50px; display: flex; justify-content: space-between; text-align: center;">
-          <div>
-            <p>Dibuat oleh,</p>
-            <br><br><br>
-            <p>( ${doc.surindo_pic || 'Mumuh'} )</p>
-          </div>
-          <div>
-            <p>Disetujui oleh,</p>
-            <br><br><br>
-            <p>( ........................... )</p>
-          </div>
-        </div>
+        <table style="margin-top:16px;">
+          <colgroup><col style="width:19%"><col style="width:81%"></colgroup>
+          <tr><td class="lbl">Send By</td><td>${esc((doc.send_by || '').toUpperCase())}</td></tr>
+          <tr><td class="lbl">Charge</td><td>${esc((doc.charge || '').toUpperCase())}</td></tr>
+        </table>
       `;
     }
   </script>
