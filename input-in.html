@@ -30,17 +30,15 @@
         <table>
           <thead>
             <tr>
-              <th>Tanggal</th>
-              <th>Kategori</th>
+              <th>Req No / Tanggal</th>
               <th>Part Name</th>
               <th>Part Number</th>
               <th>Qty IN</th>
+              <th>Unit</th>
               <th>Aksi</th>
             </tr>
           </thead>
-          <tbody id="tableINBody">
-            <!-- Diisi JS -->
-          </tbody>
+          <tbody id="tableINBody"></tbody>
         </table>
       </div>
     </div>
@@ -48,47 +46,59 @@
 
   <script>
     let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
-    // Filter hanya tipe IN
-    let dataIN = allRequests.filter(r => r.type === 'IN');
+    let dataIN = allRequests.filter(r => r.type === 'IN' && r.items); // Pastikan ada items
 
     const tbody = document.getElementById('tableINBody');
 
     function renderTable() {
       if (dataIN.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center">Belum ada data IN. Silakan tambah.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center">Belum ada data IN.</td></tr>';
         return;
       }
 
       // Urutkan dari yang terbaru
       dataIN.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
 
-      tbody.innerHTML = dataIN.map(r => `
-        <tr>
-          <td>${r.tanggal}</td>
-          <td>${r.category}</td>
-          <td>${r.item.part_name}</td>
-          <td>${r.item.part_no}</td>
-          <td>${r.item.qty}</td>
-          <td>
-            <button class="btn btn-danger btn-small" onclick="hapusIN('${r.id}')">Hapus</button>
-          </td>
-        </tr>
-      `).join('');
+      let html = '';
+      
+      dataIN.forEach(doc => {
+        // Looping setiap barang di dalam 1 dokumen
+        doc.items.forEach((item, index) => {
+          html += `
+            <tr>
+              <!-- Tampilkan Request No & Tanggal hanya di baris pertama -->
+              <td>
+                ${index === 0 ? `<strong>${doc.request_no}</strong><br><small>${doc.tanggal}</small>` : ''}
+              </td>
+              <td>${item.part_name}</td>
+              <td>${item.part_no}</td>
+              <td>${item.qty}</td>
+              <td>${item.unit}</td>
+              <!-- Tombol Hapus hanya muncul di baris pertama -->
+              <td>
+                ${index === 0 ? `<button class="btn btn-danger btn-small" onclick="hapusIN('${doc.id}')">Hapus Dokumen</button>` : ''}
+              </td>
+            </tr>
+          `;
+        });
+        
+        // Tambahkan garis pemisah antar dokumen
+        html += `<tr><td colspan="6" style="border-bottom: 2px solid #e2e8f0;"></td></tr>`;
+      });
+
+      tbody.innerHTML = html;
     }
 
     function hapusIN(id) {
-      if (!confirm('Yakin ingin menghapus data IN ini?')) return;
+      if (!confirm('Yakin ingin menghapus seluruh dokumen IN ini?')) return;
       
-      // Hapus dari array utama
       allRequests = allRequests.filter(r => r.id !== id);
       localStorage.setItem('requests', JSON.stringify(allRequests));
       
-      // Update dataIN dan render ulang
-      dataIN = allRequests.filter(r => r.type === 'IN');
+      dataIN = allRequests.filter(r => r.type === 'IN' && r.items);
       renderTable();
     }
 
-    // Render awal
     renderTable();
   </script>
 </body>
