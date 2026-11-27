@@ -33,10 +33,10 @@
         <table>
           <thead>
             <tr>
-              <th>Req No</th>
+              <th>Doc Number</th>
               <th>Tipe</th>
               <th>Tanggal</th>
-              <th>PIC / Supplier</th>
+              <th>PIC</th>
               <th>Status Approval</th>
               <th>Aksi</th>
             </tr>
@@ -52,19 +52,19 @@
 
     // ================= 1. RENDER STOK =================
     const stockContainer = document.getElementById('stockContainer');
-    const stockData = {}; 
-    
+    const stockData = {};
+
     allRequests.forEach(r => {
-      // Hitung IN (Looping semua items di dalamnya)
+      // Hitung IN (looping semua items di dalamnya)
       if (r.type === 'IN' && r.items) {
         r.items.forEach(it => {
           stockData[it.category] = (stockData[it.category] || 0) + Number(it.qty);
         });
-      } 
-      // Hitung OUT (Hanya yang approved)
+      }
+      // Hitung OUT (hanya yang approved)
       else if (r.type === 'OUT' && r.status === 'approved' && r.items) {
         r.items.forEach(it => {
-          if(it.category) {
+          if (it.category) {
             stockData[it.category] = (stockData[it.category] || 0) - Number(it.qty_out);
           }
         });
@@ -84,36 +84,35 @@
       }
     }
 
-    // ================= 2. RENDER RIWAYAT =================
-    // Filter data valid
-    const validRequests = allRequests.filter(r => {
-      if (!r.request_no) return false;
-      const isFormatBaru = r.request_no.startsWith('OUT-I-') || r.request_no.startsWith('IN-I-');
-      if (!isFormatBaru) return false;
-      if (r.type === 'OUT') return r.status === 'pending' || r.status === 'approved';
-      return true;
-    });
+    // ================= 2. RENDER RIWAYAT (SEMUA IN & OUT) =================
+    // Hanya buang data format lama (tanpa nomor dokumen baru). Status OUT apa pun ikut tampil.
+    const validRequests = allRequests.filter(r =>
+      r.request_no &&
+      (r.request_no.startsWith('OUT-I-') || r.request_no.startsWith('IN-I-'))
+    );
 
     const historyBody = document.getElementById('historyBody');
-    
+
     if (validRequests.length === 0) {
       historyBody.innerHTML = '<tr><td colspan="6" style="text-align:center">Belum ada riwayat</td></tr>';
     } else {
-      validRequests.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
-      
+      validRequests.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+
       historyBody.innerHTML = validRequests.map(r => {
         let statusBadge = '-';
-        let displayName = '-';
 
         if (r.type === 'OUT') {
-          if (r.status === 'pending') statusBadge = '<span class="badge" style="background:#fef3c7;color:#92400e;">Pending</span>';
-          else if (r.status === 'approved') statusBadge = '<span class="badge" style="background:#d1fae5;color:#065f46;">Approved</span>';
-          displayName = r.supplier_name || '-';
+          if (r.status === 'approved') statusBadge = '<span class="badge" style="background:#d1fae5;color:#065f46;">Approved</span>';
+          else statusBadge = '<span class="badge" style="background:#fef3c7;color:#92400e;">Pending</span>';
         } else if (r.type === 'IN') {
           statusBadge = '<span class="badge" style="background:#dbeafe;color:#1e40af;">Received</span>';
-          // Untuk IN, tampilkan jumlah jenis barang yang masuk
-          const totalBarang = r.items ? r.items.length : 0;
-          displayName = `${totalBarang} Jenis Barang`;
+        }
+
+        let aksi = '-';
+        if (r.type === 'OUT') {
+          aksi = r.status === 'approved'
+            ? `<a href="/preview.html?id=${r.id}" class="btn btn-primary btn-small">Preview TR</a>`
+            : `<button class="btn btn-success btn-small" onclick="approve('${r.id}')">Approve</button>`;
         }
 
         return `
@@ -121,25 +120,21 @@
             <td><strong>${r.request_no}</strong></td>
             <td>${r.type}</td>
             <td>${r.tanggal}</td>
-            <td>${displayName}</td>
+            <td>${r.surindo_pic || '-'}</td>
             <td>${statusBadge}</td>
-            <td>
-              ${r.type === 'OUT' && r.status === 'pending' 
-                ? `<button class="btn btn-success btn-small" onclick="approve('${r.id}')">Approve</button>` 
-                : (r.type === 'OUT' ? `<a href="/preview.html?id=${r.id}" class="btn btn-primary btn-small">Preview TR</a>` : '-')
-              }
-            </td>
+            <td>${aksi}</td>
           </tr>
         `;
       }).join('');
     }
 
     function approve(id) {
-      if(!confirm('Approve dokumen ini?')) return;
+      if (!confirm('Approve dokumen ini?')) return;
       const reqs = JSON.parse(localStorage.getItem('requests') || '[]');
       const doc = reqs.find(r => r.id === id);
       if (doc) {
         doc.status = 'approved';
+        doc.approved_at = new Date().toISOString();   // dipakai kotak APPROVED di TR
         localStorage.setItem('requests', JSON.stringify(reqs));
         location.reload();
       }
