@@ -7,6 +7,7 @@
   <style>
     input:disabled, textarea:disabled { background-color: #e2e8f0 !important; color: #64748b !important; cursor: not-allowed !important; }
     .tabnav button.locked { opacity: .45; cursor: not-allowed; }
+    .packing-row { display: grid; grid-template-columns: 1fr 2fr 1fr 1fr; gap: 15px; margin-bottom: 10px; }
   </style>
 </head>
 <body>
@@ -101,12 +102,16 @@
           <thead><tr><th>Part Name</th><th>Part No</th><th>Qty OUT</th><th>Aksi</th></tr></thead>
           <tbody id="listBarang"></tbody>
         </table>
+
+        <hr style="margin: 20px 0;">
+        <!-- BARU: konfirmasi barang selesai -->
+        <button class="btn btn-success" style="width: 100%; padding: 15px; font-size: 16px;" onclick="barangSelesai()">✅ Barang Selesai, Lanjut ke Packing List</button>
       </div>
 
       <!-- TAB 3: PACKING -->
       <div class="card tab-content" id="tab-packing">
         <h3>Packing List</h3>
-        <p style="font-size:13px; color:#64748b; margin-bottom:10px;">Satu baris = satu box. Dimensi format: L: 40 x W: 30 x H: 25</p>
+        <p style="font-size:13px; color:#64748b; margin-bottom:10px;">Satu baris = satu box. Dimensi dalam <strong>CM</strong>, format: L: 40 x W: 30 x H: 25. Net weight tidak boleh lebih besar dari gross weight.</p>
         <div id="packingContainer"></div>
         <button class="btn btn-primary" onclick="tambahBox()">+ Tambah Box Lain</button>
 
@@ -131,7 +136,8 @@
         surindo_pic: pic,
         status: 'pending',
         items: [],
-        packing: []
+        packing: [],
+        barang_done: false
       };
     }
 
@@ -151,11 +157,10 @@
 
     function updateTabLock() {
       const barangOk = currentDoc.request_no !== '';
-      const packingOk = barangOk && currentDoc.items.length > 0;
+      const packingOk = barangOk && currentDoc.items.length > 0 && currentDoc.barang_done === true;
       setLock('barang', !barangOk);
       setLock('packing', !packingOk);
 
-      // Kalau tab aktif jadi terkunci, balik ke tab sebelumnya
       const active = document.querySelector('.tab-content.active').id.replace('tab-', '');
       if (active === 'packing' && !packingOk) switchTab(barangOk ? 'barang' : 'dokumen');
       else if (active === 'barang' && !barangOk) switchTab('dokumen');
@@ -168,6 +173,7 @@
       if (tab === 'packing') {
         if (currentDoc.request_no === '') return alert('Lengkapi data Dokumen dan klik "Generate Doc Number" terlebih dahulu!');
         if (currentDoc.items.length === 0) return alert('Isi minimal 1 barang di tab Barang terlebih dahulu!');
+        if (!currentDoc.barang_done) return alert('Klik "Barang Selesai" di tab Barang setelah semua barang terisi!');
       }
       document.querySelectorAll('.tabnav button').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -188,13 +194,12 @@
       let saldo = 0;
       all.forEach(r => {
         if (r.type === 'IN') {
-          const inItems = r.items || (r.item ? [r.item] : []);   // format baru & lama
+          const inItems = r.items || (r.item ? [r.item] : []);
           inItems.forEach(it => { if (it.part_no === partNo) saldo += Number(it.qty) || 0; });
         } else if (r.type === 'OUT' && r.status === 'approved' && r.items && r.id !== currentDoc.id) {
           r.items.forEach(it => { if (it.part_no === partNo) saldo -= Number(it.qty_out) || 0; });
         }
       });
-      // Kurangi barang yang sudah ditambahkan di dokumen yang sedang dibuat
       currentDoc.items.forEach(it => { if (it.part_no === partNo) saldo -= Number(it.qty_out) || 0; });
       return saldo;
     }
@@ -269,6 +274,7 @@
 
       if (existing) {
         currentDoc = existing;
+        currentDoc.barang_done = true;   // dokumen yang sudah tersimpan pasti sudah selesai
         document.getElementById('reqNo').textContent = currentDoc.request_no;
         document.getElementById('btnGenerate').disabled = true;
         document.getElementById('btnGenerate').textContent = '✅ Dokumen Sudah Ada';
@@ -338,7 +344,7 @@
       document.getElementById('btnGenerate').style.background = '#64748b';
 
       updateTabLock();
-      switchTab('barang');   // lanjut otomatis ke tab Barang
+      switchTab('barang');
     }
 
     // ================= TAB 2 (BARANG) =================
@@ -363,6 +369,7 @@
         unit: unit,
         qty_out: qty
       });
+      currentDoc.barang_done = false;   // ada perubahan barang, harus konfirmasi ulang
 
       renderBarang();
 
@@ -388,7 +395,22 @@
 
     function hapusBarang(idx) {
       currentDoc.items.splice(idx, 1);
+      currentDoc.barang_done = false;
       renderBarang();
+    }
+
+    // BARU: konfirmasi semua barang sudah terisi
+    function barangSelesai() {
+      if (currentDoc.items.length === 0) return alert('Tambahkan minimal 1 barang terlebih dahulu!');
+
+      const belumDitambah = document.getElementById('outPartName').value !== '' || Number(document.getElementById('outQty').value) > 0;
+      if (belumDitambah) {
+        return alert('Masih ada barang yang dipilih tapi belum ditambahkan. Klik "Tambah Barang" dulu, atau kosongkan pilihannya.');
+      }
+
+      currentDoc.barang_done = true;
+      updateTabLock();
+      switchTab('packing');
     }
 
     // ================= TAB 3 (PACKING) — 1 baris = 1 box =================
@@ -396,16 +418,16 @@
       p = p || {};
       return `
         <div class="form-row"><label>Box</label><input type="text" class="packLabel" value="Box ${n}" disabled /></div>
-        <div class="form-row"><label>Dimensi (L x W x H)</label><input type="text" class="packDim" placeholder="L: 40 x W: 30 x H: 25" value="${p.dimensi || ''}" /></div>
-        <div class="form-row"><label>Gross (Kg)</label><input type="number" step="0.01" class="packGross" value="${p.gross || ''}" /></div>
+        <div class="form-row"><label>Dimensi (L x W x H) — CM</label><input type="text" class="packDim" placeholder="L: 40 x W: 30 x H: 25" value="${p.dimensi || ''}" /></div>
+        <div class="form-row"><label>Gross (Kg)</label><input type="number" step="0.01" min="0" class="packGross" value="${p.gross || ''}" /></div>
+        <div class="form-row"><label>Net (Kg)</label><input type="number" step="0.01" min="0" class="packNett" value="${p.nett || ''}" /></div>
       `;
     }
 
     function tambahBox() {
       const container = document.getElementById('packingContainer');
       const div = document.createElement('div');
-      div.className = 'packing-row grid-3';
-      div.style.marginBottom = '10px';
+      div.className = 'packing-row';
       div.innerHTML = boxRowHtml(container.children.length + 1);
       container.appendChild(div);
     }
@@ -416,8 +438,7 @@
       const list = (currentDoc.packing && currentDoc.packing.length) ? currentDoc.packing : [{}];
       list.forEach((p, i) => {
         const div = document.createElement('div');
-        div.className = 'packing-row grid-3';
-        div.style.marginBottom = '10px';
+        div.className = 'packing-row';
         div.innerHTML = boxRowHtml(i + 1, p);
         container.appendChild(div);
       });
@@ -426,18 +447,33 @@
     // ================= FINAL SUBMIT =================
     function kirimKeAtasan() {
       if (currentDoc.request_no === '') return alert('Klik "Generate Doc Number" di Tab 1 terlebih dahulu!');
+      if (currentDoc.items.length === 0) return alert('Barang belum diisi!');
+      if (!currentDoc.barang_done) return alert('Klik "Barang Selesai" di tab Barang terlebih dahulu!');
 
       collectMeta();
 
-      const rows = document.querySelectorAll('.packing-row');
-      currentDoc.packing = Array.from(rows).map(r => ({
-        jumlah_box: 1,
-        dimensi: r.querySelector('.packDim').value.trim(),
-        gross: r.querySelector('.packGross').value
-      })).filter(p => p.gross !== '');
+      const rows = Array.from(document.querySelectorAll('.packing-row'));
+      const packing = [];
 
-      if (currentDoc.items.length === 0) return alert('Barang belum diisi!');
-      if (currentDoc.packing.length === 0) return alert('Packing List belum diisi!');
+      for (let i = 0; i < rows.length; i++) {
+        const dim = rows[i].querySelector('.packDim').value.trim();
+        const gross = rows[i].querySelector('.packGross').value;
+        const nett = rows[i].querySelector('.packNett').value;
+
+        // Baris yang benar-benar kosong dilewati
+        if (!dim && gross === '' && nett === '') continue;
+
+        if (!dim || gross === '' || nett === '') {
+          return alert('Box ' + (i + 1) + ': dimensi, gross, dan net weight wajib diisi semua!');
+        }
+        if (Number(nett) > Number(gross)) {
+          return alert('Box ' + (i + 1) + ': Net weight tidak boleh lebih besar dari Gross weight!');
+        }
+        packing.push({ jumlah_box: 1, dimensi: dim, gross: gross, nett: nett });
+      }
+
+      if (packing.length === 0) return alert('Packing List belum diisi!');
+      currentDoc.packing = packing;
 
       let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
       allRequests.push(currentDoc);
