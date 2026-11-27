@@ -5,7 +5,7 @@
   <title>Form Input OUT</title>
   <link rel="stylesheet" href="/css/style.css" />
   <style>
-    input:disabled, textarea:disabled { background-color: #e2e8f0 !important; color: #64748b !important; cursor: not-allowed !important; }
+    input:disabled, textarea:disabled, select:disabled { background-color: #e2e8f0 !important; color: #64748b !important; cursor: not-allowed !important; }
     .tabnav button.locked { opacity: .45; cursor: not-allowed; }
     .packing-row { display: grid; grid-template-columns: 1fr 2fr 1fr 1fr; gap: 15px; margin-bottom: 10px; }
   </style>
@@ -23,12 +23,13 @@
   <div class="main-content">
     <div class="topbar">
       <h3>Input Movement GB Sample EXPORT (OUT)</h3>
-      <a href="/input-out.html" class="btn btn-secondary btn-small">← Kembali ke Tabel</a>
+      <a href="/input-out.html" class="btn btn-secondary btn-small" onclick="return konfirmKeluar()">← Kembali ke Tabel</a>
     </div>
 
     <div class="container">
-      <div class="card" style="padding: 15px 24px; display:flex; gap: 30px; background:#e0e7ff;">
+      <div class="card" style="padding: 15px 24px; display:flex; gap: 30px; align-items:center; background:#e0e7ff;">
         <div><strong>Doc Number:</strong> <span id="reqNo">(Belum di-generate)</span></div>
+        <button class="btn btn-danger btn-small" id="btnBatal" style="display:none; margin-left:auto;" onclick="batalDokumen()">✖ Batal & Mulai Ulang</button>
       </div>
 
       <div class="tabnav">
@@ -43,14 +44,14 @@
         <div class="grid-2">
           <div class="form-row">
             <label>PIC</label>
-            <select id="outPic" onchange="checkExistingDoc()">
+            <select id="outPic" onchange="cekPicHariIni()">
               <option>Darijok</option><option>Mumuh</option><option>Angga</option>
               <option>Vera</option><option>Rian</option><option>Ayadi</option><option>Huda</option>
             </select>
           </div>
           <div class="form-row">
             <label>Tanggal</label>
-            <input type="date" id="outDate" onchange="checkExistingDoc()" />
+            <input type="date" id="outDate" onchange="cekPicHariIni()" />
           </div>
           <div class="form-row">
             <label>Id Supplier</label>
@@ -70,6 +71,7 @@
           <div class="form-row"><label>Purpose</label><input type="text" id="purpose" placeholder="mis. Sample Test Endurance" /></div>
         </div>
 
+        <p id="msgDuplicate" style="color: #dc2626; font-size: 13px; display: none; margin-bottom:10px;"></p>
         <button class="btn btn-primary" onclick="generateRequestNo()" id="btnGenerate">💾 Generate Doc Number</button>
         <p id="msgGenerate" style="color: #059669; font-size: 13px; display: none; margin-top:10px;">✅ Doc Number berhasil di-generate!</p>
       </div>
@@ -122,9 +124,13 @@
 
   <script src="/js/masterData.js"></script>
   <script>
-    const urlParams = new URLSearchParams(window.location.search);
-    let isNew = urlParams.get('new') === 'true';
     const MAX_ITEMS = 20;
+
+    // Tanggal lokal (bukan UTC) format YYYY-MM-DD
+    function todayStr() {
+      const d = new Date();
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
 
     function newDoc(tgl, pic) {
       return {
@@ -140,8 +146,11 @@
       };
     }
 
-    let currentDoc = newDoc(new Date().toISOString().slice(0,10), 'Darijok');
-    document.getElementById('outDate').value = currentDoc.tanggal;
+    // State sementara: TIDAK masuk riwayat sampai klik "Simpan Semua & Kirim ke Atasan"
+    let currentDoc = newDoc(todayStr(), 'Darijok');
+
+    // Matikan isian otomatis/restore dari browser
+    document.querySelectorAll('input, select, textarea').forEach(el => el.setAttribute('autocomplete', 'off'));
 
     const suppSel = document.getElementById('suppId');
     MASTER_SUPPLIERS.forEach(s => suppSel.innerHTML += `<option value="${s.id}">${s.id}</option>`);
@@ -224,11 +233,6 @@
       document.getElementById('purpose').value = '';
     }
 
-    function fillMeta(d) {
-      document.getElementById('destPic').value = d.dest_pic || '';
-      document.getElementById('purpose').value = d.purpose || '';
-    }
-
     function collectMeta() {
       currentDoc.supplier_name = document.getElementById('suppName').value;
       currentDoc.supplier_address = document.getElementById('suppAddress').value;
@@ -236,12 +240,16 @@
       currentDoc.purpose = document.getElementById('purpose').value.trim();
     }
 
+    // ================= MULAI DARI AWAL (FORM BERSIH) =================
     function resetFormUI() {
       document.getElementById('reqNo').textContent = '(Belum di-generate)';
       document.getElementById('btnGenerate').disabled = false;
       document.getElementById('btnGenerate').textContent = '💾 Generate Doc Number';
       document.getElementById('btnGenerate').style.background = '#1e3a8a';
       document.getElementById('msgGenerate').style.display = 'none';
+      document.getElementById('btnBatal').style.display = 'none';
+      document.getElementById('outPic').disabled = false;
+      document.getElementById('outDate').disabled = false;
       document.getElementById('suppId').value = '';
       document.getElementById('suppName').value = '';
       document.getElementById('suppAddress').value = '';
@@ -251,58 +259,42 @@
       updateTabLock();
     }
 
-    // ================= CHECK EXISTING DOC =================
-    function checkExistingDoc() {
-      const pic = document.getElementById('outPic').value;
-      const tgl = document.getElementById('outDate').value;
-      if (!pic || !tgl) return;
+    function mulaiBaru() {
+      const today = todayStr();
+      const picSel = document.getElementById('outPic');
+      picSel.selectedIndex = 0;
 
-      if (isNew) {
-        isNew = false;
-        resetFormUI();
-        return;
-      }
+      currentDoc = newDoc(today, picSel.value);
+      document.getElementById('outDate').value = today;
 
-      let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
-      const existing = allRequests.find(r =>
-        r.type === 'OUT' &&
-        r.surindo_pic === pic &&
-        r.tanggal === tgl &&
-        r.request_no && r.request_no.startsWith('OUT-I-')
-      );
+      // Tab Barang
+      document.getElementById('outCategory').selectedIndex = 0;
+      document.getElementById('outPartName').value = '';
+      document.getElementById('outPartNo').value = '';
+      document.getElementById('outUnit').value = '';
+      document.getElementById('outSaldo').value = '';
+      document.getElementById('outQty').value = '0';
 
-      if (existing) {
-        currentDoc = existing;
-        currentDoc.barang_done = true;   // dokumen yang sudah tersimpan pasti sudah selesai
-        document.getElementById('reqNo').textContent = currentDoc.request_no;
-        document.getElementById('btnGenerate').disabled = true;
-        document.getElementById('btnGenerate').textContent = '✅ Dokumen Sudah Ada';
-        document.getElementById('btnGenerate').style.background = '#64748b';
-        document.getElementById('msgGenerate').style.display = 'block';
+      resetFormUI();
+      switchTab('dokumen');
+      cekPicHariIni();
+    }
 
-        if (currentDoc.supplier_name) {
-          const supp = MASTER_SUPPLIERS.find(s => s.name === currentDoc.supplier_name);
-          if (supp) {
-            document.getElementById('suppId').value = supp.id;
-            autoFillSupplier();
-          }
-        }
-        fillMeta(currentDoc);
-        renderBarang();
-        renderPacking();
-        updateTabLock();
-      } else {
-        currentDoc = newDoc(tgl, pic);
-        resetFormUI();
-      }
+    function batalDokumen() {
+      if (!confirm('Batalkan dokumen ini? Semua isian dihapus dan tidak disimpan ke riwayat.')) return;
+      mulaiBaru();
+    }
+
+    function konfirmKeluar() {
+      if (currentDoc.request_no === '') return true;
+      return confirm('Dokumen belum disimpan. Keluar dan buang semua isian?');
     }
 
     // ================= NOMOR DOKUMEN =================
-    // Nomor berikutnya = nomor tertinggi di tahun itu + 1.
-    // Berlaku untuk semua PIC, dihitung hanya dari dokumen yang tersimpan,
-    // jadi kalau dokumen terakhir dihapus, nomornya dipakai lagi.
+    // Nomor berikutnya = nomor tertinggi di tahun itu + 1 (semua PIC).
+    // Dihitung hanya dari dokumen yang TERSIMPAN, jadi dokumen yang dibatalkan tidak memakai nomor.
     function nextDocNumber(type, dateVal) {
-      const year = dateVal.slice(2, 4);             // '2026-11-27' -> '26'
+      const year = dateVal.slice(2, 4);
       const head = `${type}-I-${year}-`;
       const all = JSON.parse(localStorage.getItem('requests') || '[]');
       let maxSeq = 0;
@@ -315,10 +307,27 @@
       return head + String(maxSeq + 1).padStart(3, '0');
     }
 
-    // Satu PIC hanya boleh satu dokumen OUT per tanggal
-    function picSudahInput(pic, dateVal) {
+    // Dokumen OUT milik PIC ini di tanggal itu (kalau ada)
+    function docPicHariIni(pic, dateVal) {
       const all = JSON.parse(localStorage.getItem('requests') || '[]');
-      return all.some(r => r.type === 'OUT' && r.surindo_pic === pic && r.tanggal === dateVal);
+      return all.find(r => r.type === 'OUT' && r.surindo_pic === pic && r.tanggal === dateVal);
+    }
+
+    // Satu PIC hanya boleh sekali per hari: tampilkan peringatan & kunci tombol Generate
+    function cekPicHariIni() {
+      const pic = document.getElementById('outPic').value;
+      const tgl = document.getElementById('outDate').value;
+      const msg = document.getElementById('msgDuplicate');
+      const sudah = pic && tgl ? docPicHariIni(pic, tgl) : null;
+
+      if (sudah && currentDoc.request_no === '') {
+        msg.textContent = '⚠️ ' + pic + ' sudah input dokumen OUT di tanggal ini (' + sudah.request_no + '). Satu PIC hanya bisa sekali per hari.';
+        msg.style.display = 'block';
+        document.getElementById('btnGenerate').disabled = true;
+      } else {
+        msg.style.display = 'none';
+        document.getElementById('btnGenerate').disabled = currentDoc.request_no !== '';
+      }
     }
 
     // ================= GENERATE DOC NUMBER =================
@@ -337,7 +346,7 @@
       if (kurang.length) return alert('Lengkapi dulu: ' + kurang.join(', '));
 
       if (currentDoc.request_no !== '') return alert('Doc Number sudah di-generate!');
-      if (picSudahInput(pic, dateVal)) {
+      if (docPicHariIni(pic, dateVal)) {
         return alert(pic + ' sudah input dokumen OUT di tanggal ini. Satu PIC hanya bisa sekali per hari.');
       }
 
@@ -351,9 +360,14 @@
 
       document.getElementById('reqNo').textContent = newReqNo;
       document.getElementById('msgGenerate').style.display = 'block';
+      document.getElementById('msgDuplicate').style.display = 'none';
       document.getElementById('btnGenerate').disabled = true;
       document.getElementById('btnGenerate').textContent = '✅ Siap Disimpan';
       document.getElementById('btnGenerate').style.background = '#64748b';
+      document.getElementById('btnBatal').style.display = 'inline-block';
+      // Kunci PIC & tanggal supaya tidak berubah di tengah pengisian (mau ganti: Batal & Mulai Ulang)
+      document.getElementById('outPic').disabled = true;
+      document.getElementById('outDate').disabled = true;
 
       updateTabLock();
       switchTab('barang');
@@ -381,7 +395,7 @@
         unit: unit,
         qty_out: qty
       });
-      currentDoc.barang_done = false;   // ada perubahan barang, harus konfirmasi ulang
+      currentDoc.barang_done = false;
 
       renderBarang();
 
@@ -411,7 +425,6 @@
       renderBarang();
     }
 
-    // Konfirmasi semua barang sudah terisi
     function barangSelesai() {
       if (currentDoc.items.length === 0) return alert('Tambahkan minimal 1 barang terlebih dahulu!');
 
@@ -430,9 +443,9 @@
       p = p || {};
       return `
         <div class="form-row"><label>Box</label><input type="text" class="packLabel" value="Box ${n}" disabled /></div>
-        <div class="form-row"><label>Dimensi (L x W x H) — CM</label><input type="text" class="packDim" placeholder="L: 40 x W: 30 x H: 25" value="${p.dimensi || ''}" /></div>
-        <div class="form-row"><label>Gross (Kg)</label><input type="number" step="0.01" min="0" class="packGross" value="${p.gross || ''}" /></div>
-        <div class="form-row"><label>Net (Kg)</label><input type="number" step="0.01" min="0" class="packNett" value="${p.nett || ''}" /></div>
+        <div class="form-row"><label>Dimensi (L x W x H) — CM</label><input type="text" class="packDim" autocomplete="off" placeholder="L: 40 x W: 30 x H: 25" value="${p.dimensi || ''}" /></div>
+        <div class="form-row"><label>Gross (Kg)</label><input type="number" step="0.01" min="0" class="packGross" autocomplete="off" value="${p.gross || ''}" /></div>
+        <div class="form-row"><label>Net (Kg)</label><input type="number" step="0.01" min="0" class="packNett" autocomplete="off" value="${p.nett || ''}" /></div>
       `;
     }
 
@@ -456,7 +469,7 @@
       });
     }
 
-    // ================= FINAL SUBMIT =================
+    // ================= FINAL SUBMIT (SATU-SATUNYA YANG MENYIMPAN KE RIWAYAT) =================
     function kirimKeAtasan() {
       if (currentDoc.request_no === '') return alert('Klik "Generate Doc Number" di Tab 1 terlebih dahulu!');
       if (currentDoc.items.length === 0) return alert('Barang belum diisi!');
@@ -464,12 +477,11 @@
 
       let allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
 
-      // Dokumen yang sudah tersimpan tidak boleh disimpan ulang
       if (allRequests.some(r => r.id === currentDoc.id)) {
-        return alert('Dokumen ini sudah tersimpan. ' + currentDoc.surindo_pic + ' tidak bisa input lagi di tanggal ini.');
+        return alert('Dokumen ini sudah tersimpan.');
       }
       // Cek ulang saat simpan (jaga-jaga PIC yang sama sudah menyimpan dari tab lain)
-      if (picSudahInput(currentDoc.surindo_pic, currentDoc.tanggal)) {
+      if (docPicHariIni(currentDoc.surindo_pic, currentDoc.tanggal)) {
         return alert(currentDoc.surindo_pic + ' sudah input dokumen OUT di tanggal ini.');
       }
 
@@ -483,7 +495,6 @@
         const gross = rows[i].querySelector('.packGross').value;
         const nett = rows[i].querySelector('.packNett').value;
 
-        // Baris yang benar-benar kosong dilewati
         if (!dim && gross === '' && nett === '') continue;
 
         if (!dim || gross === '' || nett === '') {
@@ -511,7 +522,9 @@
       window.location.href = '/input-out.html';
     }
 
-    checkExistingDoc();
+    // Selalu mulai bersih: saat dibuka, di-refresh, atau kembali lewat tombol Back
+    mulaiBaru();
+    window.addEventListener('pageshow', mulaiBaru);
   </script>
 </body>
 </html>
