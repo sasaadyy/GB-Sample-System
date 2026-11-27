@@ -55,9 +55,14 @@
     const stockData = {}; 
     
     allRequests.forEach(r => {
-      if (r.type === 'IN' && r.item) {
-        stockData[r.category] = (stockData[r.category] || 0) + Number(r.item.qty);
-      } else if (r.type === 'OUT' && r.status === 'approved' && r.items) {
+      // Hitung IN (Looping semua items di dalamnya)
+      if (r.type === 'IN' && r.items) {
+        r.items.forEach(it => {
+          stockData[it.category] = (stockData[it.category] || 0) + Number(it.qty);
+        });
+      } 
+      // Hitung OUT (Hanya yang approved)
+      else if (r.type === 'OUT' && r.status === 'approved' && r.items) {
         r.items.forEach(it => {
           if(it.category) {
             stockData[it.category] = (stockData[it.category] || 0) - Number(it.qty_out);
@@ -80,21 +85,12 @@
     }
 
     // ================= 2. RENDER RIWAYAT =================
-    // KETAT: Hanya tampilkan data yang sudah terkirim (Pending/Approved) dan ada request_no valid
+    // Filter data valid
     const validRequests = allRequests.filter(r => {
-      // Abaikan jika tidak punya request_no yang benar
       if (!r.request_no) return false;
-      
-      // Abaikan data sampah lama yang tidak diawali format baru
       const isFormatBaru = r.request_no.startsWith('OUT-I-') || r.request_no.startsWith('IN-I-');
       if (!isFormatBaru) return false;
-
-      // JIKA TIPE OUT: Hanya tampilkan jika statusnya pending atau approved (BUKAN DRAFT)
-      if (r.type === 'OUT') {
-        return r.status === 'pending' || r.status === 'approved';
-      }
-      
-      // Jika IN, tampilkan semua
+      if (r.type === 'OUT') return r.status === 'pending' || r.status === 'approved';
       return true;
     });
 
@@ -107,17 +103,18 @@
       
       historyBody.innerHTML = validRequests.map(r => {
         let statusBadge = '-';
-        
+        let displayName = '-';
+
         if (r.type === 'OUT') {
           if (r.status === 'pending') statusBadge = '<span class="badge" style="background:#fef3c7;color:#92400e;">Pending</span>';
           else if (r.status === 'approved') statusBadge = '<span class="badge" style="background:#d1fae5;color:#065f46;">Approved</span>';
+          displayName = r.supplier_name || '-';
         } else if (r.type === 'IN') {
           statusBadge = '<span class="badge" style="background:#dbeafe;color:#1e40af;">Received</span>';
+          // Untuk IN, tampilkan jumlah jenis barang yang masuk
+          const totalBarang = r.items ? r.items.length : 0;
+          displayName = `${totalBarang} Jenis Barang`;
         }
-
-        let displayName = '-';
-        if (r.type === 'OUT') displayName = r.supplier_name || '-';
-        else if (r.type === 'IN') displayName = r.item && r.item.part_name ? r.item.part_name : '-';
 
         return `
           <tr>
@@ -139,7 +136,6 @@
 
     function approve(id) {
       if(!confirm('Approve dokumen ini?')) return;
-      
       const reqs = JSON.parse(localStorage.getItem('requests') || '[]');
       const doc = reqs.find(r => r.id === id);
       if (doc) {
